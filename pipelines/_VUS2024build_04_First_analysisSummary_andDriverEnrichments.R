@@ -72,48 +72,48 @@ print(paste('involving',ntestedGenes,'genes'))
 ct_tested_variants<-unlist(lapply(tissues,function(x){length(which(totalTestedVariants$cty==x))}))
 names(ct_tested_variants)<-tissues
 
-# #uncomment this to collect all DAMs
-# fc<-dir(resultPath)
-# fc<-grep('_results.RData',fc,value=TRUE)
-# 
-# allDAMs<-NULL
-# allHits<-NULL
-# for (i in 1:length(fc)){
-#    print(i)
-#    cty<-strsplit(fc[i],'_results.RData')[[1]]
-#    load(paste(resultPath,'/',fc[i],sep=''))
-# 
-#    hitsIdxs<-which(RESTOT$medFitEff< -0.5 & RESTOT$rank_ratio< 1.6)
-#    currHits<-RESTOT[hitsIdxs,]
-#    currDAMs<-decoupleMultipleHits(currHits)
-#    rownames(currHits)<-NULL
-#    rownames(currDAMs)<-NULL
-# 
-#    currHits<-currHits[order(currHits$GENE),]
-#    currDAMs<-currDAMs[,1:3]
-#    currDAMs<-currDAMs[order(currDAMs$GENE),]
-#    allDAMs<-rbind(allDAMs,currDAMs)
-#    allHits<-rbind(allHits,currHits)
-#    }
-# 
-# 
-# 
-# save(allHits,file=paste(resultPath,'/_allHits.RData',sep=''))
-# write.table(allHits,sep="\t",quote=FALSE,file=paste(resultPath,'/_allHits.tsv',sep=''))
-# save(allDAMs,file=paste(resultPath,'/_allDAMs.RData',sep=''))
-# write.table(allDAMs,sep="\t",quote=FALSE,file=paste(resultPath,'/_allDAMs.tsv',sep=''))
-# allDAM_bearing_genes<-sort(unique(allHits$GENE))
-# id<-match(allDAM_bearing_genes,allHits$GENE)
-# 
-# DAMbearing_in<-unlist(lapply(allDAM_bearing_genes,function(x){
-#     cid<-which(allHits$GENE==x)
-#     analyses<-paste(sort(allHits$ctype[cid]),collapse=' | ')
-#   }))
-# 
-# allDAM_bearing_genes<-cbind(allDAM_bearing_genes,allHits[id,c('inTOgen_driver_for','Act','LoF','ambigous')],DAMbearing_in)
-# save(allDAM_bearing_genes,file=paste(resultPath,'/_allDAM_bearing_genes.RData',sep=''))
-# write.table(allDAM_bearing_genes,quote=FALSE,sep='\t',file=paste(resultPath,'/_allDAM_bearing_genes.tsv',sep=''))
-# #[END] uncomment this to collect all DAMS
+#uncomment this to collect all DAMs
+fc<-dir(resultPath)
+fc<-grep('_results.RData',fc,value=TRUE)
+
+allDAMs<-NULL
+allHits<-NULL
+for (i in 1:length(fc)){
+   print(i)
+   cty<-strsplit(fc[i],'_results.RData')[[1]]
+   load(paste(resultPath,'/',fc[i],sep=''))
+
+   hitsIdxs<-which(RESTOT$medFitEff< -0.5 & RESTOT$rank_ratio< 1.6)
+   currHits<-RESTOT[hitsIdxs,]
+   currDAMs<-decoupleMultipleHits(currHits)
+   rownames(currHits)<-NULL
+   rownames(currDAMs)<-NULL
+
+   currHits<-currHits[order(currHits$GENE),]
+   currDAMs<-currDAMs[,1:3]
+   currDAMs<-currDAMs[order(currDAMs$GENE),]
+   allDAMs<-rbind(allDAMs,currDAMs)
+   allHits<-rbind(allHits,currHits)
+   }
+
+
+
+save(allHits,file=paste(resultPath,'/_allHits.RData',sep=''))
+write.table(allHits,sep="\t",quote=FALSE,file=paste(resultPath,'/_allHits.tsv',sep=''))
+save(allDAMs,file=paste(resultPath,'/_allDAMs.RData',sep=''))
+write.table(allDAMs,sep="\t",quote=FALSE,file=paste(resultPath,'/_allDAMs.tsv',sep=''))
+allDAM_bearing_genes<-sort(unique(allHits$GENE))
+id<-match(allDAM_bearing_genes,allHits$GENE)
+
+DAMbearing_in<-unlist(lapply(allDAM_bearing_genes,function(x){
+    cid<-which(allHits$GENE==x)
+    analyses<-paste(sort(allHits$ctype[cid]),collapse=' | ')
+  }))
+
+allDAM_bearing_genes<-cbind(allDAM_bearing_genes,allHits[id,c('inTOgen_driver_for','Act','LoF','ambigous')],DAMbearing_in)
+save(allDAM_bearing_genes,file=paste(resultPath,'/_allDAM_bearing_genes.RData',sep=''))
+write.table(allDAM_bearing_genes,quote=FALSE,sep='\t',file=paste(resultPath,'/_allDAM_bearing_genes.tsv',sep=''))
+#[END] uncomment this to collect all DAMS
 
 load(paste(resultPath,'/_allHits.RData',sep=''))
 load(paste(resultPath,'/_allDAMs.RData',sep=''))

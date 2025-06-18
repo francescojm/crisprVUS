@@ -5,7 +5,7 @@ library(tidyverse)
 ####setting paths
 pathdata <- "../data/_VUS2024build/"
 pathscript <- "pipelines"
-resultPath<-'../results/_VUS2024build/20241122/'
+resultPath<-'../results/_VUS2024build/20250617paperTest/'
 
 ###loading input data
 gene_annot <- read_csv(paste(pathdata, "/raw/gene_identifiers_20191101.csv", sep=""))
@@ -74,5 +74,5 @@ for (ctiss in tissues){
 
 }
 
-source(paste(pathscript, '/_VUS2024build_04_First_analysisSummary.R', sep=""))
+source(paste(pathscript, '/_VUS2024build_04_First_analysisSummary_andDriverEnrichments.R', sep=""))
 
