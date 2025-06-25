@@ -1,48 +1,70 @@
-
-.libPaths(c("/home/aurora.savino/R/x86_64-pc-linux-gnu-library/4.0", .libPaths()))
+set.seed(123)
 library(CELLector)
 library(tidyverse)
 
+####setting paths
 pathdata <- "data"
 pathscript <- "pipelines"
-resultPath<-'results/20220208'
+resultPath<-'results/20250221/'
 
-gene_annot <- read_csv(paste(pathdata, "/gene_identifiers_20191101.csv", sep=""))
+###loading input data
+gene_annot <- read_csv(paste(pathdata, "/raw/gene_identifiers_20241212.csv", sep=""))
+### gene_identifiers_20191101 downloaded from https://cog.sanger.ac.uk/cmp/download/gene_identifiers_20241212.csv on 20250221
 
-load(paste(pathdata,"/R/Sanger_Broad_higQ_scaled_depFC.RData", sep=""))
-load(paste(pathdata,'/R/Sanger_Broad_higQ_bdep.RData', sep=""))
+CMP_annot <- read_csv(paste(pathdata,"/raw/model_list_20241120.csv", sep="")) 
+### model_list_20240110.csv downloaded from https://cog.sanger.ac.uk/cmp/download/model_list_20241120.csv on 20250129
 
-load(paste(pathdata,'/preComputed/ADaM.RData', sep=""))
-load(paste(pathdata,'/preComputed/FiPer_outputs.RData', sep=""))
+scaled_depFC<-read.csv(paste(pathdata,'/raw/CRISPRGeneEffect.csv', sep=""), row.names = 1)
+colnames(scaled_depFC)<-gsub("\\..*","",colnames(scaled_depFC))
+###scaled essentiality matrices downloaded from https://depmap.org/portal/data_page/?tab=allData on 20250129 (24Q4)
 
-## latest sanger/broad unreleased yet variants hg38 
-cl_variants <- read_csv(paste(pathdata,'/mutations_all_latest.csv', sep=""))
+toremove<-which(is.na(CMP_annot$model_id[match(rownames(scaled_depFC),CMP_annot$BROAD_ID)]))
+scaled_depFC<-scaled_depFC[-toremove,]
+rownames(scaled_depFC)<-CMP_annot$model_id[match(rownames(scaled_depFC),CMP_annot$BROAD_ID)]
+
+scaled_depFC<-t(scaled_depFC)
+
+#remove genes with missing values
+scaled_depFC<-scaled_depFC[-which(rowSums(is.na(scaled_depFC))>0),]
+#create a binarized matrix (essential vs non-essential)
+bdep<-scaled_depFC
+bdep[scaled_depFC<=(-0.5)]<-1
+bdep[scaled_depFC>(-0.5)]<-0
+
+load(paste(pathdata,'/Robj/ADaM.RData', sep=""))
+load(paste(pathdata,'/Robj/FiPer_outputs.RData', sep=""))
+### Rbjects precomputed as in Vinceti et al, BMC Genomics, 2021
+
+cl_variants <- read_csv(paste(pathdata,'/raw/mutations_all_20241212.csv', sep=""))
+### mutations_all_20230202 downloaded from  https://cog.sanger.ac.uk/cmp/download/mutations_all_20241212.zip on 20250221
+
 cl_variants <- cbind(cl_variants,gene_annot$hgnc_symbol[match(cl_variants$gene_id,gene_annot$gene_id)])
-colnames(cl_variants)[ncol(cl_variants)]<-'gene_symbol_2019'
+colnames(cl_variants)[ncol(cl_variants)]<-'gene_symbol_2023'
 
-CMP_annot <- read_csv(paste(pathdata,"/model_list_20210611.csv", sep="")) # from https://cog.sanger.ac.uk/cmp/download/model_list_20210611.csv
 
+###print a few figures
 print(paste(nrow(CMP_annot),'annotated models in the Cell Models Passports'))
-
 print(paste('of which',length(which(is.element(CMP_annot$model_id,cl_variants$model_id))),'with mutation data'))
 
-CMP_annot<-CMP_annot[which(is.element(CMP_annot$model_name,colnames(scaled_depFC))),]
+#select only cell lines with data in both CRISPR screens and CMP annotation file
+CMP_annot<-CMP_annot[which(is.element(CMP_annot$model_id,colnames(scaled_depFC))),]
 print(paste('of which',nrow(CMP_annot),'with high quality CRISPR data'))
 
+#select tissues
 tissues<-CMP_annot$cancer_type
-
 st<-summary(as.factor(tissues))
 
 tissues<-sort(setdiff(tissues,names(which(st<5))))
-tissues<-setdiff(tissues,c('Other Solid Carcinomas','Other Solid Cancers','Other Sarcomas'))
+tissues<-setdiff(tissues,c('Other Solid Carcinomas','Other Solid Cancers','Other Sarcomas', "Other Blood Cancers", "Non-Cancerous"))
 
 CMP_annot<-CMP_annot[which(is.element(CMP_annot$cancer_type,tissues)),]
 
 incl_cl_annot<-CMP_annot
 
-save(incl_cl_annot,file=paste(resultPath,'/_incl_cl_annot.RData',sep=''))
-
 tissues<-sort(tissues)
+
+load(paste(pathdata, "/Robj/basal_exp.RData", sep=""))
+
 
 ###################################################
 ####################################################
