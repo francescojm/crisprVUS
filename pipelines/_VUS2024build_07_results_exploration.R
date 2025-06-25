@@ -104,35 +104,6 @@ pdf(paste(home, path_results, "/exploration/figures/medFitEff_distribution.pdf",
 ggplot(df, aes(x=medFitEff))+geom_histogram(bins = 100)+theme_classic()+ geom_vline(xintercept = -0.5, linetype="dashed", color = "red", size=0.5)
 dev.off()
 
-####################
-### Number of DAMs-cancer type combinations
-#######################
-
-num_vars<-c()
-for(ctiss in tissues){
-  ind<-which(results[[ctiss]]$rank_ratio<1.6 & results[[ctiss]]$medFitEff< -.5 & results[[ctiss]]$pval_rand < 0.2)
-
-  num_vars<-c(num_vars, length(unlist(strsplit(results[[ctiss]]$var[ind], " \\| "))))
-}
-sum(num_vars)
-
-#############################
-### How many DAM-bearing genes per tissue?
-##############################
-
-num_hits<-c()
-for(ctiss in tissues){
-  num_hits<-c(num_hits, length(unique(results[[ctiss]]$GENE[results[[ctiss]]$rank_ratio<1.6 & results[[ctiss]]$medFitEff< -.5 & results[[ctiss]]$pval_rand < 0.2])))
-}
-names(num_hits)<-tissues
-
-hist(num_hits, breaks=20)
-barplot(sort(num_hits, decreasing = T)[1:10], las=2)
-
-paste("the tissue with the highest number of hits is ", names(num_hits)[which.max(num_hits)],
-      "with", num_hits[which.max(num_hits)], "hits", sep=" ")
-paste("the tissue with the lowest number of hits is ", names(num_hits)[which.min(num_hits)],
-      "with", num_hits[which.min(num_hits)], "hits", sep=" ")
 
 ##############################
 ##taking tumor burden into account
@@ -157,6 +128,13 @@ for(ctiss in tissues){
 names(mut_burden_new)<-tissues
 
 #plot(mut_burden_anno, mut_burden_new)#the two values are correlated
+
+num_hits<-c()
+for(ctiss in tissues){
+  num_hits<-c(num_hits, length(unique(results[[ctiss]]$GENE[results[[ctiss]]$rank_ratio<1.6 & results[[ctiss]]$medFitEff< -.5 & results[[ctiss]]$pval_rand < 0.2])))
+}
+names(num_hits)<-tissues
+
 num_hits_norm<-num_hits/mut_burden_new
 
 
@@ -196,8 +174,6 @@ paste("Number of unique DAM-bearing genes:", length(unique(hits)))
 hits_2ormore<-sort(table(hits), decreasing=T)[1:sum(table(hits)>1)]
 
 paste("Number of DAM-bearing genes in at least two cancer types:", length(hits_2ormore))
-
-setdiff(names(hits_2ormore), driver_genes)
 
 paste("of which not known to be drivers:", length(setdiff(names(hits_2ormore), driver_genes)))
 
@@ -274,23 +250,6 @@ print(paste("Number of cell lines with DAMs", sum(df_text$unique_lines) ))
 print(paste("Fraction of cell lines with DAMs", sum(df_text$unique_lines)/length(lines_screened) ))
 
 
-summary_lines<-data.frame(gene=NA, var=NA, line=NA, cancer_type=NA)
-for(ctiss in tissues){
-  ind<-which(results[[ctiss]]$rank_ratio<1.6 & results[[ctiss]]$medFitEff< -.5 & results[[ctiss]]$pval_rand < 0.2)
-
-  for(i in 1:length(ind)){
-    gene_ctiss<-results[[ctiss]]$GENE[ind[i]]
-    vars_ctiss<-unlist(strsplit(results[[ctiss]]$var[ind[i]], " \\| "))
-
-    for(var in vars_ctiss){
-    lines_tmp<-cl_variants$model_id[cl_variants$gene_symbol==gene_ctiss & cl_variants$protein_mutation %in% var & CMP_annot$cancer_type[match(cl_variants$model_id, CMP_annot$model_id)]==ctiss]
-    summary_tmp<-data.frame(gene=rep(gene_ctiss, length(lines_tmp)), var=rep(var, length(lines_tmp)), line=lines_tmp, cancer_type=rep(ctiss, length(lines_tmp)))
-    summary_lines<-rbind.data.frame(summary_lines, summary_tmp)
-    }
-  }
-}
-
-
 ########################################
 #### Overlap between DAM-bearing genes and driver genes
 ###################################
@@ -301,9 +260,6 @@ dev.off()
 perc_int<-length(intersect(hits, driver_genes))/length(hits)
 print(paste("Intersection", perc_int))
 
-pdf(paste(home, path_results, "/exploration/figures/Venn_driver_LoFAct_hits.pdf", sep=""), 5, 5)
-ggvenn(data=list( 'Act'=act_drivers, 'LoF'=LoF_drivers, 'Hits'=hits),text_size=5,  show_percentage = F)
-dev.off()
 
 ######################
 #### Other lists of drivers
@@ -362,20 +318,6 @@ save(summary_drivers_bin, file=paste(home, path_results, "summary_drivers_bin.RD
 
 
 #for each diver genes, plotted how many tumor types were known and how many novel ones we find
-selhits<-names(which(rowSums(summary_drivers==c("Known Found"), na.rm=T)>0|rowSums(summary_drivers==c("Novel"), na.rm=T)>0))
-df<-data.frame(counts=c(rowSums(summary_drivers=="Known Found", na.rm=T), rowSums(summary_drivers=="Known Not Found", na.rm=T), rowSums(summary_drivers=="Novel", na.rm=T)),
-               type=rep(c("Found in a Known Cancer Type", "Not Found in a Known Cancer Type","Found in a Novel Cancer Type"), each=nrow(summary_drivers)), gene=c(rownames(summary_drivers), rownames(summary_drivers), rownames(summary_drivers)))
-
-df$gene<-factor(df$gene, levels=c(df$gene[df$type=="Found in a Known Cancer Type"][order(df$counts[df$type=="Found in a Known Cancer Type"]+df$counts[df$type=="Found in a Novel Cancer Type"])]))
-
-df$counts[df$type=="Not Found in a Known Cancer Type"]<- -df$counts[df$type=="Not Found in a Known Cancer Type"]
-df$type<-factor(df$type, levels=c("Found in a Known Cancer Type", "Found in a Novel Cancer Type", "Not Found in a Known Cancer Type"))
-
-pdf(paste(home, path_results, "/exploration/figures/Drivers_barplot.pdf", sep=""),20, 5)
-ggplot(subset(df, (gene %in% selhits) & (type !="Not Found in a Known Cancer Type")),aes(x=gene, y=counts, fill=type))+geom_bar(stat="identity")+theme_classic()+ylab("Number of cancer types")+xlab("")+theme(axis.text.x = element_text(angle=90, size=10))+
-  scale_fill_manual(values = c("#0072B2", "#56B4E9"), labels= c("Known", "Novel"))+ guides(fill=guide_legend(title="Cancer Type"))
-dev.off()
-
 selhits2<-names(which(rowSums(summary_drivers==("Known Found")|summary_drivers==("Novel"), na.rm=T)>1))
 
 toplot<-summary_drivers_bin[selhits2,]
@@ -435,14 +377,4 @@ df_sel<-df[df$tissue %in% df$tissue[order(num_hits_norm, decreasing=T)][1:10],]
 pdf(paste(home, path_results, "/exploration/figures/Hits_tissue_stack_simpl.pdf", sep=""), 5, 5)
 ggplot(df_sel, aes(x=tissue, y=counts, fill=type))+geom_bar(stat="identity")+theme_classic()+ylab("% of hits")+xlab("")+theme(axis.text.x = element_text(angle=90, size=10))+
   scale_fill_manual(values = c("#0072B2",  "#E69F00"))+ guides(fill=guide_legend(title="Hit"))
-dev.off()
-
-
-selhits<-names(which(rowSums(summary_nodrivers, na.rm=T)>1))
-df<-data.frame(counts=c(rowSums(summary_nodrivers, na.rm=T)), gene=c(rownames(summary_nodrivers)))
-
-df$gene<-factor(df$gene, levels=c(df$gene[order(df$counts)]))
-
-pdf(paste(home, path_results, "/exploration/figures/NODrivers_barplot.pdf", sep=""),20, 5)
-ggplot(subset(df, (gene %in% selhits)),aes(x=gene, y=counts))+geom_bar(stat="identity")+theme_classic()+ylab("Number of cancer types")+xlab("")+theme(axis.text.x = element_text(angle=90, size=10))
 dev.off()
