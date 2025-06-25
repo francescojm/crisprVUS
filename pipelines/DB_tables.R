@@ -4,28 +4,54 @@
 library(tidyverse)
 
 path_data<-"/data"
-path_results<-"/results/20220208"
-home<-"/Volumes/home/VUS/VUS"
+path_results<-"/results/20250221"
+home<-"E:/VUS_2024build"
 
 setwd(paste(home, "/", path_results, sep=""))
 dir.create("DB_tables")
 
 ##load essentiality data
-load(paste(home, "/", path_data,'/R/Sanger_Broad_higQ_bdep.RData', sep=""))
-load(paste(home, "/", path_data, '/R/Sanger_Broad_higQ_scaled_depFC.RData', sep=""))
+CMP_annot <- read_csv(paste(home, path_data,"/raw/model_list_20241120.csv", sep="")) 
+### model_list_20240110.csv downloaded from https://cog.sanger.ac.uk/cmp/download/model_list_20241120.csv on 20250129
+
+scaled_depFC<-read.csv(paste(home, path_data,'/raw/CRISPRGeneEffect.csv', sep=""), row.names = 1)
+colnames(scaled_depFC)<-gsub("\\..*","",colnames(scaled_depFC))
+###scaled essentiality matrices downloaded from https://depmap.org/portal/data_page/?tab=allData on 20250129 (24Q4)
+
+toremove<-which(is.na(CMP_annot$model_id[match(rownames(scaled_depFC),CMP_annot$BROAD_ID)]))
+scaled_depFC<-scaled_depFC[-toremove,]
+rownames(scaled_depFC)<-CMP_annot$model_id[match(rownames(scaled_depFC),CMP_annot$BROAD_ID)]
+
+scaled_depFC<-t(scaled_depFC)
+
+#remove genes with missing values
+scaled_depFC<-scaled_depFC[-which(rowSums(is.na(scaled_depFC))>0),]
+#create a binarized matrix (essential vs non-essential)
+bdep<-scaled_depFC
+bdep[scaled_depFC<=(-0.5)]<-1
+bdep[scaled_depFC>(-0.5)]<-0
 
 ##############################
 ##cell lines annotations
 #############################
-CMP_annot <- read_csv(paste(home, "/",path_data,"/model_list_20210611.csv", sep="")) # from https://cog.sanger.ac.uk/cmp/download/model_list_20210611.csv
-##select cell lines with essentiality data
-CMP_annot<-CMP_annot[which(is.element(CMP_annot$model_name,colnames(scaled_depFC))),]
+#select only cell lines with data in both CRISPR screens and CMP annotation file
+CMP_annot<-CMP_annot[which(is.element(CMP_annot$model_id,colnames(scaled_depFC))),]
+
+#select tissues
 tissues<-CMP_annot$cancer_type
 st<-summary(as.factor(tissues))
+
 tissues<-sort(setdiff(tissues,names(which(st<5))))
-tissues<-setdiff(tissues,c('Other Solid Carcinomas','Other Solid Cancers','Other Sarcomas'))
-tissues<-sort(tissues)
+tissues<-setdiff(tissues,c('Other Solid Carcinomas','Other Solid Cancers','Other Sarcomas', "Other Blood Cancers", "Non-Cancerous"))
+
 CMP_annot<-CMP_annot[which(is.element(CMP_annot$cancer_type,tissues)),]
+
+tissues<-sort(tissues)
+
+tissue_names<-data.frame(tissue_name=tissues)
+write.csv(tissue_names, "DB_tables/tissues.csv", quote=F, row.names = F)
+
+
 CellLine<-CMP_annot[, c("model_id", "model_name", "cancer_type")]
 colnames(CellLine)<-c("cell_line_id", "cell_line_name", "tissue_name")
 #check that the id is unique
@@ -37,31 +63,29 @@ write.csv(CellLine, "DB_tables/CellLine.csv", quote=F, row.names = F)
 #######################
 ### Variants
 ####################
+###loading input data
+gene_annot <- read_csv(paste(home, path_data, "/raw/gene_identifiers_20241212.csv", sep=""))
+### gene_identifiers_20191101 downloaded from https://cog.sanger.ac.uk/cmp/download/gene_identifiers_20241212.csv on 20250221
 
-## latest sanger/broad unreleased yet variants hg38
-cl_variants <- read_csv(paste(home, "/", path_data,'/mutations_all_latest.csv', sep=""))
+cl_variants <- read_csv(paste(home, path_data,'/raw/mutations_all_20241212.csv', sep=""))
+### mutations_all_20230202 downloaded from  https://cog.sanger.ac.uk/cmp/download/mutations_all_20241212.zip on 20250221
 
-##gene annotation
-gene_annot <- read_csv(paste(home, "/",path_data, "/gene_identifiers_20191101.csv", sep=""))
 cl_variants <- cbind(cl_variants,gene_annot$hgnc_symbol[match(cl_variants$gene_id,gene_annot$gene_id)])
-colnames(cl_variants)[ncol(cl_variants)]<-'gene_symbol_2019'
-##model names
-cl_variants <- cbind(cl_variants,CMP_annot$model_name[match(cl_variants$model_id,CMP_annot$model_id)])
-colnames(cl_variants)[ncol(cl_variants)] <- 'model_name'
+colnames(cl_variants)[ncol(cl_variants)]<-'gene_symbol_2023'
+
 ##cancer type
 cl_variants <- cbind(cl_variants,CMP_annot$cancer_type[match(cl_variants$model_id,CMP_annot$model_id)])
 colnames(cl_variants)[ncol(cl_variants)] <- 'cancer_type'
-colnames(cl_variants)[12] <- 'protein_mutation'
-
 
 ##used for gene filtering
-load(paste(home, "/", path_data,'/preComputed/ADaM.RData', sep=""))
-load(paste(home, "/", path_data,'/preComputed/FiPer_outputs.RData', sep=""))
+load(paste(home, path_data,'/RObj/ADaM.RData', sep=""))
+load(paste(home, path_data,'/RObj/FiPer_outputs.RData', sep=""))
+### Rbjects precomputed as in Vinceti et al, BMC Genomics, 2021
 
 ##########
 ### Load DAMs
 ##############
-setwd(paste(home, "/", path_results, sep=""))
+tissues<-gsub("_results_ext.RData", "", list.files(pattern="results_ext.RData"))
 
 results<-list()
 ind_iter<-0
@@ -93,8 +117,7 @@ write.csv(DAMs, file="DB_tables/DAM.csv", quote=F, row.names = F)
 allvars<-unique(vars_tot)
 allgenes<-unique(genes_tot)
 
-scaled_depFC_sel<-scaled_depFC[allgenes,unique(CMP_annot$model_name)]
-colnames(scaled_depFC_sel)<-CMP_annot$model_id[match(colnames(scaled_depFC_sel), CMP_annot$model_name)]
+scaled_depFC_sel<-scaled_depFC[allgenes,unique(CMP_annot$model_id)]
 
 library(reshape2)
 scaled_depFC_sel_melt<-melt(data = scaled_depFC_sel, varnames = c("gene", "line"))
@@ -102,19 +125,19 @@ Essentiality<-scaled_depFC_sel_melt
 colnames(Essentiality)<-c("gene_id", "cell_line_id", "essentiality_value")
 
 #check that the id is unique
-sum(duplicated(paste(Essentiality$gene_id, Essentiality$CellLineID)))==0
+sum(duplicated(paste(Essentiality$gene_id, Essentiality$cell_line_id)))==0
 write.csv(Essentiality, file="DB_tables/Essentiality.csv", quote=F, row.names = F)
 
 #####################
 
-CellLineHasVariant<-cl_variants[(cl_variants$model_id %in% CellLine$cell_line_id & paste(cl_variants$gene_symbol_2019, cl_variants$protein_mutation, sep="-") %in% allvars),]
-CellLineHasVariant$VariantID<-paste(CellLineHasVariant$gene_symbol_2019, CellLineHasVariant$protein_mutation, sep="-")
+CellLineHasVariant<-cl_variants[(cl_variants$model_id %in% CellLine$cell_line_id & paste(cl_variants$gene_symbol_2023, cl_variants$protein_mutation, sep="-") %in% allvars),]
+CellLineHasVariant$VariantID<-paste(CellLineHasVariant$gene_symbol_2023, CellLineHasVariant$protein_mutation, sep="-")
 CellLineHasVariant<-CellLineHasVariant[,c("model_id", "VariantID")]
 colnames(CellLineHasVariant)<-c("CellLineID", "VariantID")
 
 #check that the id is unique
-sum(duplicated(paste(CellLineHasVariant$CellLineID, CellLineHasVariant$VariantID)))==0
 CellLineHasVariant<-unique(CellLineHasVariant)
+sum(duplicated(paste(CellLineHasVariant$CellLineID, CellLineHasVariant$VariantID)))==0
 
 #togliere le lettere maiuscole subito dopo "del" in variants
 CellLineHasVariant$VariantID[grep("del[[:upper:]]+$",CellLineHasVariant$VariantID)]<-gsub("del[[:upper:]]+$","del",CellLineHasVariant$VariantID[grep("del[[:upper:]]+$",CellLineHasVariant$VariantID)])
@@ -132,19 +155,39 @@ write.csv(CellLineHasVariant, file="DB_tables/CellLineHasVariant.csv", quote=F, 
 #####################################################################
 ################################### BY VAR
 #########################################################################
-###########################
-#### VEP
-##############################
+inTOgen_drivers<-read.table(paste(home, '/data/raw/2024-06-18_IntOGen-Drivers/Compendium_Cancer_Genes.tsv', sep=""),sep='\t',stringsAsFactors = FALSE,header=TRUE)
+### inTOgene drivers downloaded from https://www.intogen.org/download?file=IntOGen-Drivers-20240920.zip on 20241002
+driver_genes<-unique(inTOgen_drivers$SYMBOL)
 
-vars_vep<-read.csv(paste(home, "/", path_data, "/allvars_id_20220215_hg38.annotated_variants.txt", sep=""), sep="\t", header=T)
-
+genes<-cbind(gene_annot$hgnc_symbol, ifelse(gene_annot$hgnc_symbol %in% driver_genes, 1, 0))
+colnames(genes)<-c("gene", "is_driver")
+genes<-genes[-which(duplicated(genes[,"gene"])),]
+write.csv(genes, file="DB_tables/genes.csv", quote=F, row.names = F)
 
 #################
 #### each cancer type separately
 ###################
+
+mapping<-read.csv(paste(home, path_data,'/raw/intOGen ctype mapping_AS.csv',sep=''),header = TRUE,row.names = 1, sep=";")
+
+cancer_match_long_CMP<-c()
+cancer_match_long_into<-c()
+for(i in 1:nrow(mapping)){
+  cancer_match_long_into<-c(cancer_match_long_into, unlist(strsplit(mapping[i,1], " \\| ")))
+  cancer_match_long_CMP<-c(cancer_match_long_CMP, rep(rownames(mapping)[i],length(unlist(strsplit(mapping[i,1], " \\| ")))))
+}
+mapping_intogen<-cbind(cancer_match_long_CMP, cancer_match_long_into)
+
+cancer_match_long_CMP<-c()
+cancer_match_long_into<-c()
+for(i in 1:nrow(mapping)){
+  cancer_match_long_into<-c(cancer_match_long_into, unlist(strsplit(mapping[i,2], " \\| ")))
+  cancer_match_long_CMP<-c(cancer_match_long_CMP, rep(rownames(mapping)[i],length(unlist(strsplit(mapping[i,2], " \\| ")))))
+}
+mapping_cosmic<-cbind(cancer_match_long_CMP, cancer_match_long_into)
+
 load("summary_byvar.RData")
 summary_vars$ID<-paste(summary_vars$Gene, summary_vars$Var, sep="-")
-summary_vars$Perc_Intogen<-summary_vars$Perc_Intogen/100
 summary_vars$Num_tiss<-summary_vars$Perc_tiss*33
 summary_vars$Num_Intogen[is.na(summary_vars$Num_Intogen)]<-0
 
@@ -159,22 +202,19 @@ summary_vars$Match_tiss_COSMIC_name<-NA
 
 load("all_tiss_comsic_byvar.RData")
 load("all_tiss_intogen_byvar.RData")
-library(openxlsx)
-cancer_match_ext<-read.xlsx("cancer_match_ext.xlsx",1)
-cosmic_match<-read.xlsx("cosmic_match.xlsx",1)
 
 for(i in 1:nrow(summary_vars)){
   type_tiss<-unique(unlist(strsplit(summary_vars[i, "Tiss"], " \\| ")))
   type_intogen<-na.omit(unique(unlist(strsplit(summary_vars[i, "Type_Intogen"], " \\| "))))
   type_cosmic<-na.omit(unique(unlist(strsplit(summary_vars[i, "Type_COSMIC"], " \\| "))))
-
+  
   summary_vars$Num_tiss_Intogen[i]<-length(type_intogen)
   summary_vars$Num_tiss_COSMIC[i]<-length(type_cosmic)
-
-  matching_intogen<-unique(cancer_match_ext[which(cancer_match_ext[,2] %in% type_intogen),1])
-
-  matching_cosmic<-unique(cosmic_match[which(cosmic_match[,3] %in% type_cosmic),1])
-
+  
+  matching_intogen<-unique(mapping_intogen[which(mapping_intogen[,2] %in% type_intogen),1])
+  
+  matching_cosmic<-unique(mapping_cosmic[which(mapping_cosmic[,2] %in% type_cosmic),1])
+  
   summary_vars$Match_tiss_Intogen[i]<-length(intersect(type_tiss, matching_intogen))
   summary_vars$Match_tiss_COSMIC[i]<-length(intersect(type_tiss, matching_cosmic))
   summary_vars$Matching_inboth[i]<-length(Reduce(intersect, list(matching_intogen, type_tiss, matching_cosmic)))
@@ -188,24 +228,20 @@ summary_vars_bytiss$tissue<-"ALL"
 summary_vars_bytiss$num_patients<-c(summary_vars[,c("Num_COSMIC")], summary_vars[,c( "Num_Intogen")])
 summary_vars_bytiss$database<-c(rep("COSMIC", nrow(summary_vars)), rep("Intogen", nrow(summary_vars)))
 
-#colonna num_patients
-#colonna tissue (anche ALL e ALL_MATCHING)
-#colonna db
 for(i in 1:nrow(summary_vars)){
   type_tiss<-unique(unlist(strsplit(summary_vars[i, "Tiss"], " \\| ")))
   type_intogen<-na.omit(unique(unlist(strsplit(summary_vars[i, "Type_Intogen"], " \\| "))))
   type_cosmic<-na.omit(unique(unlist(strsplit(summary_vars[i, "Type_COSMIC"], " \\| "))))
-
-  matching_intogen<-unique(cancer_match_ext[which(cancer_match_ext[,2] %in% type_intogen),1])
-
-  matching_cosmic<-unique(cosmic_match[which(cosmic_match[,3] %in% type_cosmic),1])
-
+  
+  matching_intogen<-unique(mapping_intogen[which(mapping_intogen[,2] %in% type_intogen),1])
+  matching_cosmic<-unique(mapping_cosmic[which(mapping_cosmic[,2] %in% type_cosmic),1])
+  
   ###matched tissues cosmic
   if(length(intersect(type_tiss, matching_cosmic))>0){
     num_cosmic_bytiss<-c()
     for(tiss in intersect(type_tiss, matching_cosmic)){
-      tiss_cosmic<-cosmic_match[cosmic_match[,1]==tiss,3]
-      num_cosmic_bytiss<-c(num_cosmic_bytiss, sum(all_tiss_cosmic[[summary_vars$ID[i]]][tiss_cosmic], na.rm=T))
+      tiss_cosmic<-mapping_cosmic[mapping_cosmic[,1]==tiss,2]
+      num_cosmic_bytiss<-c(num_cosmic_bytiss, sum(unlist(all_tiss_cosmic[[summary_vars$ID[i]]][tiss_cosmic]), na.rm=T))
     }
     num_cosmic_bytiss<-c(num_cosmic_bytiss, sum(num_cosmic_bytiss))
     names(num_cosmic_bytiss)<-c(intersect(type_tiss, matching_cosmic), "ALL_MATCHING")
@@ -219,13 +255,13 @@ for(i in 1:nrow(summary_vars)){
     toadd$database<-"COSMIC"
     summary_vars_bytiss<-rbind(summary_vars_bytiss, toadd)
   }
-
+  
   ###matched tissues intogen
   if(length(intersect(type_tiss, matching_intogen))>0){
     num_intogen_bytiss<-c()
     for(tiss in intersect(type_tiss, matching_intogen)){
-      tiss_intogen<-cancer_match_ext[cancer_match_ext[,1]==tiss,2]
-      num_intogen_bytiss<-c(num_intogen_bytiss, sum(all_tiss_intogen[[summary_vars$ID[i]]][tiss_intogen], na.rm=T))
+      tiss_intogen<-mapping_intogen[mapping_intogen[,1]==tiss,2]
+      num_intogen_bytiss<-c(num_intogen_bytiss, sum(unlist(all_tiss_intogen[[summary_vars$ID[i]]][tiss_intogen]), na.rm=T))
     }
     num_intogen_bytiss<-c(num_intogen_bytiss, sum(num_intogen_bytiss))
     names(num_intogen_bytiss)<-c(intersect(type_tiss, matching_intogen), "ALL_MATCHING")
@@ -239,49 +275,93 @@ for(i in 1:nrow(summary_vars)){
     toadd$database<-"Intogen"
     summary_vars_bytiss<-rbind(summary_vars_bytiss, toadd)
   }
-
+  
 }
 
-#####save list of DAMs  with at least one matching patient
+###########################
+#### add VEP
+##############################
 
-summary_vars_bytiss$SIFT<-vars_vep$transcript_consequences_sift_prediction[match(summary_vars_bytiss$ID, vars_vep$variant_id)]
-summary_vars_bytiss$PolyPhen<-vars_vep$transcript_consequences_polyphen_prediction[match(summary_vars_bytiss$ID, vars_vep$variant_id)]
+vep <- readRDS(paste(home, '/data/raw/vep_annotations.rds', sep=""))
+vars_vep<-vep$GRCh38[,c("gene_name", "protein_mutation", "sift_prediction", "polyphen_prediction")]
+vars_vep$var<-paste(vars_vep$gene_name, gsub("p.", "", vars_vep$protein_mutation), sep="-")
+vars_vep$polyphen_prediction[is.na(vars_vep$polyphen_prediction)]<-"unknown"
+vars_vep$sift_prediction[is.na(vars_vep$sift_prediction)]<-"unknown"
+
+#remove uppercase letters after "del" in DAMs, but also in intogen (no del mapped)
+vars_vep$var[grep("del[[:upper:]]+$",vars_vep$var)]<-gsub("del[[:upper:]]+$","del",vars_vep$var[grep("del[[:upper:]]+$",vars_vep$var)])
+
+#taking the most frequent prediction per AA variant
+vars_vep_summ<-data.frame(var=unique(vars_vep$var))
+sift_max<-c()
+poly_max<-c()
+for(v in unique(vars_vep$var)){
+  sift<-vars_vep$sift_prediction[which(vars_vep$var==v)]
+  sm<-setdiff(names(sort(table(sift))), "unknown")
+  sift_max<-c(sift_max, ifelse(length(sm)==0, "unknown", sm))
+  poly<-vars_vep$polyphen_prediction[which(vars_vep$var==v)]
+  pm<-setdiff(names(sort(table(poly))), "unknown")
+  poly_max<-c(poly_max, ifelse(length(pm)==0, "unknown", pm))
+}
+
+vars_vep_summ$polyphen_prediction<-poly_max
+vars_vep_summ$sift_prediction<-sift_max
+
+############create a summary data.frame
+summary_vars_bytiss$driver<-ifelse(summary_vars_bytiss$Gene %in% driver_genes, "Driver", "Non-driver")
+summary_vars_bytiss$SIFT<-vars_vep_summ$sift_prediction[match(summary_vars_bytiss$ID, vars_vep_summ$var)]
+summary_vars_bytiss$PolyPhen<-vars_vep_summ$polyphen_prediction[match(summary_vars_bytiss$ID, vars_vep_summ$var)]
 
 summary_vars_bytiss$SIFT<-gsub("\\(.*\\)", "", summary_vars_bytiss$SIFT)
 summary_vars_bytiss$PolyPhen<-gsub("\\(.*\\)", "", summary_vars_bytiss$PolyPhen)
 
+#######also the initial summary_vars
+summary_vars$driver<-ifelse(summary_vars$Gene %in% driver_genes, "Driver", "Non-driver")
+summary_vars$SIFT<-vars_vep_summ$sift_prediction[match(summary_vars$ID, vars_vep_summ$var)]
+summary_vars$PolyPhen<-vars_vep_summ$polyphen_prediction[match(summary_vars$ID, vars_vep_summ$var)]
+
+summary_vars$SIFT<-gsub("\\(.*\\)", "", summary_vars$SIFT)
+summary_vars$PolyPhen<-gsub("\\(.*\\)", "", summary_vars$PolyPhen)
+
+
+
+
+summary_sel<-summary_vars_bytiss[which(summary_vars_bytiss$Perc_tiss>(0)),]
+summary_sel<-summary_sel[which(summary_sel$tissue=="ALL_MATCHING"),]
+summary_sel$Num_COSMIC<-rep(summary_sel$num_patients[summary_sel$database=="COSMIC"], each=2)
+summary_sel$Num_Intogen<-rep(summary_sel$num_patients[summary_sel$database=="Intogen"], each=2)
+summary_sel$tot_patients<-rowSums(summary_sel[,c("Num_COSMIC", "Num_Intogen")])
+summary_sel<-summary_sel[which(summary_sel$Matching_union>0),]
+
+summary_sel<-summary_sel[summary_sel$tissue=="ALL_MATCHING"&summary_sel$database=="COSMIC",]
+summary_sel<-summary_sel[,c("ID", "Gene","Var","driver","Perc_tiss", "Tiss", "tot_patients", "Num_Intogen", "Num_COSMIC",
+                            
+                            "Num_tiss_Intogen", "Num_tiss_COSMIC",
+                            "Type_Intogen", "Type_COSMIC",
+                            "Match_tiss_Intogen", "Match_tiss_COSMIC",
+                            "Match_tiss_Intogen_name", "Match_tiss_COSMIC_name", "Matching_inboth", "Matching_union",
+                            "SIFT", "PolyPhen")]
+summary_sel<-summary_sel[order(summary_sel$tot_patients, decreasing = T),]
+
+
+summary_vars_bytiss$driver<-ifelse(summary_vars_bytiss$Gene %in% driver_genes, "Driver", "Non-driver")
+summary_vars_bytiss$SIFT<-vars_vep_summ$sift_prediction[match(summary_vars_bytiss$ID, vars_vep_summ$var)]
+summary_vars_bytiss$PolyPhen<-vars_vep_summ$polyphen_prediction[match(summary_vars_bytiss$ID, vars_vep_summ$var)]
+
+summary_vars_bytiss$SIFT<-gsub("\\(.*\\)", "", summary_vars_bytiss$SIFT)
+summary_vars_bytiss$PolyPhen<-gsub("\\(.*\\)", "", summary_vars_bytiss$PolyPhen)
+
+
 Variant<-summary_vars_bytiss[,c("ID", "Gene", "SIFT", "PolyPhen")]
-colnames(Variant)<-c("variant_id", "gene_id", "sift", "polyphen")
-
-###add some missing variants that were not in any patient, so not included in the Variant table
-Variant_missing<-setdiff(gsub(".p", "", vars_tot), rownames(summary_vars_bytiss))
-gene_missing<-gsub("\\..*","",Variant_missing)
-Variant_missing<-gsub("[.]", "-", Variant_missing)
-
-Variant_missing_SIFT<-vars_vep$transcript_consequences_sift_prediction[match(Variant_missing, vars_vep$variant_id)]
-Variant_missing_PolyPhen<-vars_vep$transcript_consequences_polyphen_prediction[match(Variant_missing, vars_vep$variant_id)]
-
-Variant_missing_SIFT<-gsub("\\(.*\\)", "", Variant_missing_SIFT)
-Variant_missing_PolyPhen<-gsub("\\(.*\\)", "", Variant_missing_PolyPhen)
-
-Variant_missing_df<-data.frame(variant_id=Variant_missing, gene_id=gene_missing,
-                               sift=Variant_missing_SIFT, polyphen=Variant_missing_PolyPhen)
-
-Variant<-rbind.data.frame(Variant, Variant_missing)
 colnames(Variant)<-c("variant_id", "gene_id", "sift", "polyphen")
 
 Variant<-unique(Variant)
 
 #check that the id is unique
-sum(duplicated(Variant$VariantID))==0
+sum(duplicated(Variant$variant_id))==0
 
-Variant$sift[is.na(Variant$sift)]<-"missing"
-Variant$polyphen[is.na(Variant$polyphen)]<-"missing"
-
-#togliere le lettere maiuscole subito dopo "del" in variants
-Variant$variant_id[grep("del[[:upper:]]+$",Variant$variant_id)]<-gsub("del[[:upper:]]+$","del",Variant$variant_id[grep("del[[:upper:]]+$",Variant$variant_id)])
-
-Variant$is_driver<-ifelse(Variant$gene_id %in% driver_genes, 1, 0)
+Variant$sift[is.na(Variant$sift)]<-""
+Variant$polyphen[is.na(Variant$polyphen)]<-""
 
 write.csv(Variant, file="DB_tables/Variant.csv", quote=F, row.names = F)
 
@@ -289,41 +369,37 @@ write.csv(Variant, file="DB_tables/Variant.csv", quote=F, row.names = F)
 load("all_tiss_comsic_byvar.RData")
 load("all_tiss_intogen_byvar.RData")
 
-cosmic_match<-read.xlsx("cosmic_match.xlsx")
-cancer_match_ext<-read.xlsx("cancer_match_ext.xlsx")
+matching_intogen<-unique(mapping_intogen[which(mapping_intogen[,2] %in% type_intogen),1])
+matching_cosmic<-unique(mapping_cosmic[which(mapping_cosmic[,2] %in% type_cosmic),1])
 
-matching_intogen<-unique(cancer_match_ext[which(cancer_match_ext[,2] %in% type_intogen),1])
-matching_cosmic<-unique(cosmic_match[which(cosmic_match[,3] %in% type_cosmic),1])
-
-all_cosmic<-matrix(0, nrow=length(all_tiss_cosmic), ncol=length(tissues))
+all_cosmic<-matrix(0, nrow=length(all_tiss_cosmic), ncol=length(tissue_names$tissue_name))
 rownames(all_cosmic)<-names(all_tiss_cosmic)
-colnames(all_cosmic)<-tissues
+colnames(all_cosmic)<-tissue_names$tissue_name
 
 for(i in 1:length(all_tiss_cosmic)){
   for(j in 1:length(names(all_tiss_cosmic[[i]]))){
-    tiss<-cosmic_match[match(names(all_tiss_cosmic[[i]])[j], cosmic_match[,3]),1]
+    tiss<-mapping_cosmic[mapping_cosmic[,2]==names(all_tiss_cosmic[[i]])[j],1]
     if(length(tiss)>0 ){
-      if(!is.na(tiss)){
-    all_cosmic[names(all_tiss_cosmic[i]),tiss]<-all_tiss_cosmic[[i]][j]
-      }
+
+    all_cosmic[names(all_tiss_cosmic[i]),tiss]<-all_cosmic[names(all_tiss_cosmic[i]),tiss]+unlist(all_tiss_cosmic[[i]][j])
+      
     }
   }
 }
 
 
-cancer_match_ext[cancer_match_ext[,1]=="Gastric carcinoma",1]<-"Gastric Carcinoma"
-all_intogen<-matrix(0, nrow=length(all_tiss_intogen), ncol=length(tissues))
+all_intogen<-matrix(0, nrow=length(all_tiss_intogen), ncol=length(tissue_names$tissue_name))
 rownames(all_intogen)<-names(all_tiss_intogen)
-colnames(all_intogen)<-tissues
+colnames(all_intogen)<-tissue_names$tissue_name
 
 for(i in 1:length(all_tiss_intogen)){
   for(j in 1:length(names(all_tiss_intogen[[i]]))){
-    tiss<-cancer_match_ext[match(names(all_tiss_intogen[[i]])[j], cancer_match_ext[,2]),1]
-    if(length(tiss)>0 ){
-      if(!is.na(tiss)){
-        all_intogen[names(all_tiss_intogen[i]),tiss]<-all_tiss_intogen[[i]][j]
+    tiss<-mapping_intogen[mapping_intogen[,2]==names(all_tiss_intogen[[i]])[j],1]
+      if(length(tiss)>0 ){
+    
+        all_intogen[names(all_tiss_intogen[i]),tiss]<-all_intogen[names(all_tiss_intogen[i]),tiss]+unlist(all_tiss_intogen[[i]][j])
       }
-    }
+    
   }
 }
 
@@ -334,8 +410,12 @@ TissueHasVariant<-data.frame(variant_id=rep(rownames(all_tot), ncol(all_tot)),
                                     n_patients=c(all_tot))
 
 
+#remove uppercase letters after "del" in DAMs, but also in intogen (no del mapped)
+vars_tot_adj<-vars_tot
+vars_tot_adj[grep("del[[:upper:]]+$",vars_tot_adj)]<-gsub("del[[:upper:]]+$","del",vars_tot_adj[grep("del[[:upper:]]+$",vars_tot_adj)])
+
 TissueHasVariant$dam<-0
-TissueHasVariant$dam[which(paste(TissueHasVariant$variant_id, TissueHasVariant$tissue_name) %in% gsub("p\\.", "", paste(vars_tot, tiss_tot)))]<-1
+TissueHasVariant$dam[which(paste(TissueHasVariant$variant_id, TissueHasVariant$tissue_name) %in% gsub("p\\.", "", paste(vars_tot_adj, tiss_tot)))]<-1
 
 write.csv(TissueHasVariant, file="DB_tables/TissueHasVariant.csv", quote=F, row.names = F)
 
@@ -345,11 +425,8 @@ write.csv(TissueHasVariant, file="DB_tables/TissueHasVariant.csv", quote=F, row.
 ############################
 
 ##load dei dati
-##driver genes
-inTOgen_drivers<-read.table(paste(home, '/data/2020-02-02_IntOGen-Drivers-20200213/Compendium_Cancer_Genes.tsv', sep=""),sep='\t',stringsAsFactors = FALSE,header=TRUE)
-driver_genes<-unique(inTOgen_drivers$SYMBOL)
 
-setwd(paste(home, "/results/20220208/_DR_plots", sep=""))
+setwd(paste(home, "/results/20250221/_DR_plots", sep=""))
 tissues_drugs<-gsub("_DR_validation.RData", "", list.files(pattern="validation.RData"))
 
 results_drugs<-list()
@@ -391,17 +468,15 @@ print(paste("Number of SAMs that are also reliable DAMs", nrow(summary_vars_byti
 
 print(paste("Number of SAMs that are also reliable DAMs in at least one patient", nrow(summary_vars_bytiss[which(summary_vars_bytiss$ID %in% summary_drugs$var_id & summary_vars_bytiss$tissue=="ALL" & summary_vars_bytiss$database=="COSMIC" & summary_vars_bytiss$num_patients>0 ),])))
 
-setwd("/Volumes/home/VUS/VUS/results/20220208")
-
 summary_vars_bytiss$driver<-ifelse(summary_vars_bytiss$Gene %in% driver_genes, "Driver", "Non-driver")
-summary_vars_bytiss$SIFT<-vars_vep$transcript_consequences_sift_prediction[match(summary_vars_bytiss$ID, vars_vep$variant_id)]
-summary_vars_bytiss$PolyPhen<-vars_vep$transcript_consequences_polyphen_prediction[match(summary_vars_bytiss$ID, vars_vep$variant_id)]
+summary_vars_bytiss$SIFT<-vars_vep$sift_prediction[match(summary_vars_bytiss$ID, vars_vep$variant_id)]
+summary_vars_bytiss$PolyPhen<-vars_vep$polyphen_prediction[match(summary_vars_bytiss$ID, vars_vep$variant_id)]
 
 summary_vars_bytiss$SIFT<-gsub("\\(.*\\)", "", summary_vars_bytiss$SIFT)
 summary_vars_bytiss$PolyPhen<-gsub("\\(.*\\)", "", summary_vars_bytiss$PolyPhen)
 summary_vars_bytiss$tot_patients<-summary_vars_bytiss$Num_Intogen+summary_vars_bytiss$Num_COSMIC
 summary_vars_bytiss<-summary_vars_bytiss[,c("ID","Gene","Var","driver","Perc_tiss", "Tiss", "tot_patients", "Num_Intogen", "Num_COSMIC",
-                                            "Perc_Intogen", "Perc_COSMIC",
+                                            
                                             "Num_tiss_Intogen", "Num_tiss_COSMIC",
                                             "Type_Intogen", "Type_COSMIC",
                                             "Match_tiss_Intogen", "Match_tiss_COSMIC",
@@ -412,37 +487,53 @@ summary_vars_bytiss<-summary_vars_bytiss[order(summary_vars_bytiss$tot_patients,
 ##############
 ###DRUGS######
 #############
-setwd(home)
+genes<-cbind(gene_annot$hgnc_symbol, ifelse(gene_annot$hgnc_symbol %in% driver_genes, 1, 0))
+colnames(genes)<-c("gene", "is_driver")
+genes<-genes[-which(duplicated(genes[,"gene"])),]
 
-drugTargetInfo <- read.table(paste(home, path_data,'/raw/drug-target_data_hgvs_clean_Goncalves_et_all.txt', sep=""),sep='\t',stringsAsFactors = FALSE,header=TRUE)
+setwd(home)
+library(openxlsx)
+#load GDSC data
+drugTargetInfo <- read.table('data/raw/drug-target_data_hgvs_clean_Goncalves_et_all.txt',sep='\t',stringsAsFactors = FALSE,header=TRUE)
+### drug-target_data_hgvs_clean_Goncalves_et_all.txt built from https://www.embopress.org/doi/suppl/10.15252/msb.20199405/suppl_file/msb199405-sup-0003-datasetev2.xlsx on 20241003
+
 
 drug_targets<-drugTargetInfo[, c("Drug.ID", "Gene.Target")]
 colnames(drug_targets)<-c("drug_gdsc_id", "gene_id")
 drug_targets<-drug_targets[drug_targets[,2]!="nan",]
-write.xlsx(drug_targets, "drug_targets_gene.xlsx", rowNames=F)
+drug_targets<-drug_targets[which(drug_targets$gene_id %in% genes[,"gene"]),]
+write.csv(drug_targets, "drug_targets_gene.csv", row.names = F, quote = F)
 
-gdsc1<-read.csv(paste(home,path_data,'/raw/GDSC1_fitted_dose_response_25Feb20.csv', sep=""),header = TRUE,stringsAsFactors = FALSE)
-gdsc2<-read.csv(paste(home,path_data,'/raw/GDSC2_fitted_dose_response_25Feb20.csv', sep=""),header = TRUE,stringsAsFactors = FALSE)
+gdsc1<-read.csv('data/raw/GDSC1_fitted_dose_response_27Oct23.csv',header = TRUE,stringsAsFactors = FALSE)
+gdsc2<-read.csv('data/raw/GDSC2_fitted_dose_response_27Oct23.csv',header = TRUE,stringsAsFactors = FALSE)
+### GDSC1_fitted_dose_response_27Oct23.csv and GDSC2_fitted_dose_response_27Oct23.csv have been downloaded from: 
+### https://cog.sanger.ac.uk/cancerrxgene/GDSC_release8.5/GDSC1_fitted_dose_response_27Oct23.xlsx and https://cog.sanger.ac.uk/cancerrxgene/GDSC_release8.5/GDSC2_fitted_dose_response_27Oct23.xlsx
+### on the 20241003
+
 colnames(gdsc1)[1]<-"DATASET"
 colnames(gdsc2)[1]<-"DATASET"
 
 gdscAll<-rbind(gdsc1,gdsc2)
 
-drugs<-data.frame(drugTargetInfo$Name, drugTargetInfo$Drug.ID)
+drugs<-data.frame(drugTargetInfo$Drug.ID, drugTargetInfo$Name)
 drugs<-unique(drugs)
-colnames(drugs)<-c("drug_name", "drug_gdsc_id")
-drugs<-drugs[drugs[,2] %in% drug_targets[,1],]
-write.xlsx(drugs, "drug.xlsx", rowNames=F)
+colnames(drugs)<-c("drug_gdsc_id", "drug_name")
+drugs<-drugs[drugs[,1] %in% drug_targets[,1],]
+write.csv(drugs, "drug.csv", row.names = F, quote = F)
 
 sensitivity<-data.frame(drug_gdsc_id=gdscAll$DRUG_ID, cell_line_id=gdscAll$SANGER_MODEL_ID,
-                        gdsc=gdscAll$DATASET, value=gdscAll$LN_IC50)
+                        gdsc=gdscAll$DATASET, value=gdscAll$LN_IC50, conc_min=gdscAll$MIN_CONC, conc_max=gdscAll$MAX_CONC)
 sensitivity<-sensitivity[sensitivity[,1] %in% c(drugs[,2]),]
-write.xlsx(sensitivity, "sensitivity.xlsx", rowNames=F)
+
+colnames(sensitivity)<-c("drug_gdsc_id", "cell_line_id", "gdsc_version", "IC50", "conc_min", "conc_max")
+sensitivity[, "gdsc_version"]<-gsub("GDSC", "", sensitivity[, "gdsc_version"])
+sensitivity<-sensitivity[which(sensitivity$drug_gdsc_id %in% drugs$drug_gdsc_id),]
+sensitivity<-sensitivity[which(sensitivity$cell_line_id %in% CellLine$cell_line_id),]
+
+write.csv(sensitivity, "sensitivity_profiles.csv", row.names=F, quote = F)
 
 
-path_data<-"/data"
-path_results<-"/results/20220208/_DR_plots"
-home<-"/Volumes/home/VUS/VUS/"
+path_results<-"/results/20250221/_DR_plots"
 
 setwd(paste(home, "/", path_results, sep=""))
 
