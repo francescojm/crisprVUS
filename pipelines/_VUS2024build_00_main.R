@@ -88,6 +88,3 @@ for (ctiss in tissues){
   rm(list=setdiff(newEnv,oldEnv))
 
 }
-
-source(paste(pathscript, '/_VUS2024build_04_First_analysisSummary_andDriverEnrichments.R', sep=""))
-
