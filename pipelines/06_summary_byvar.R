@@ -7,43 +7,34 @@
 library(tidyverse)
 
 path_data<-"/data"
-path_results<-"/results/20220208"
-home<-"/home/aurora.savino/VUS/VUS"
+path_results<-"/results/20250221"
+home<-"E:/VUS_2024build"
 
-setwd(paste(home, "/", path_results, sep=""))
+###load patient data
+load(file=paste(home, "/", path_results, "/intogen_counts_aggr.RData", sep=""))
 
-##load data
-tissues<-gsub("_results_ext.RData", "", list.files(pattern="results_ext.RData"))
-
-results<-list()
-ind_iter<-0
-for(ctiss in tissues){
-  ind_iter<-ind_iter+1
-  load(paste(ctiss, "_results_ext.RData", sep=""))
-  results[[ind_iter]] <- RESTOT
-}
-names(results)<-tissues
-
-load(file="hits.RData")
-
-intogen_freqs<-read.csv(paste(home, "/", path_data, "/intogen/intogen_summary_5Jul.txt", sep=""), sep="\t")
-intogen_freqs<-intogen_freqs[which(intogen_freqs$COUNT>0),]
-
-vars<-read.csv("allvars.csv", header=F)[-1,2]
-
-COSMIC<-read_tsv(paste(home, path_data,"/COSMIC/v96/CosmicGenomeScreensMutantExport.tsv.gz", sep=""))
+COSMIC<-read_tsv(paste(home, path_data,"/raw/Cosmic_GenomeScreensMutant_Tsv_v101_GRCh38/Cosmic_GenomeScreensMutant_v101_GRCh38.tsv.gz", sep=""))
 COSMIC<-data.frame(COSMIC)
-ind_cl<-which(COSMIC[,"Sample.Type"] %in% c("cell-line","xenograft"))
-COSMIC[,"Gene.name"]<-sub("_.*", "", COSMIC[,"Gene.name"])
-COSMIC$Mutation.AA<-gsub("p.", "", COSMIC$Mutation.AA)
+COSMICsamples<-read_tsv(paste(home, path_data,"/raw/Cosmic_Sample_Tsv_v101_GRCh38/Cosmic_Sample_v101_GRCh38.tsv.gz", sep=""))
+COSMICsamples<-data.frame(COSMICsamples)
+COSMICclassification<-read_tsv(paste(home, path_data,"/raw/Cosmic_Classification_Tsv_v101_GRCh38/Cosmic_Classification_v101_GRCh38.tsv.gz", sep=""))
+COSMICclassification<-data.frame(COSMICclassification)
+COSMICprimarysite<-(COSMICclassification$PRIMARY_SITE[match(COSMIC$COSMIC_PHENOTYPE_ID, COSMICclassification$COSMIC_PHENOTYPE_ID)])
 
-tot_COSMIC<-length(unique(COSMIC$ID_tumour[-ind_cl]))
 
-##to undiform COSMIC nomenclature
+##load DAMs data
+
+load(file=paste(home, "/", path_results, "/_allDAMs.RData", sep=""))
+vars<-paste(allDAMs$GENE, gsub("p.", "", allDAMs$var), sep="-")
+  
+COSMIC$MUTATION_AA<-gsub("p.", "", COSMIC$MUTATION_AA)
+
+##to uniform COSMIC nomenclature
 ##remove a letter in COSMIC before fs*
-COSMIC$Mutation.AA[grep("fs\\*",COSMIC$Mutation.AA)]<-gsub("[[:upper:]]fs","fs", COSMIC$Mutation.AA[grep("fs\\*",COSMIC$Mutation.AA)]) 
-#remove uppercase letters after "del" in hits, but also in intogen
+COSMIC$MUTATION_AA[grep("fs\\*",COSMIC$MUTATION_AA)]<-gsub("[[:upper:]]fs","fs", COSMIC$MUTATION_AA[grep("fs\\*",COSMIC$MUTATION_AA)]) 
+#remove uppercase letters after "del" in DAMs, but also in intogen (no del mapped)
 vars[grep("del[[:upper:]]+$",vars)]<-gsub("del[[:upper:]]+$","del",vars[grep("del[[:upper:]]+$",vars)])
+allDAMs$var<-vars
 
 
 summary_vars<-matrix(nrow=length(vars), ncol=10)
@@ -61,54 +52,41 @@ for(dg in vars){
   mut<-unlist(strsplit(dg, "-"))[[2]]
   summary_vars[dg,1]<-gene
   summary_vars[dg,2]<-mut
-  #tessuti where it is a hit
-  tissues_hit<-c()
-  for(ctiss in tissues){
-    if(gene %in% results[[ctiss]]$GENE[results[[ctiss]]$rank_ratio<1.6 & results[[ctiss]]$medFitEff< -.5 & results[[ctiss]]$pval_rand<0.2]){
-      sel_var<-unlist(strsplit(results[[ctiss]]$var[results[[ctiss]]$GENE==gene & results[[ctiss]]$rank_ratio<1.6 & results[[ctiss]]$medFitEff< -.5 & results[[ctiss]]$pval_rand<0.2], "\\ | "))
-    if(mut %in% gsub("p.", "", unlist(sel_var))){
-tissues_hit<-c(tissues_hit, ctiss)
-      }   
-    }
-  }
-  summary_vars[dg,3]<-length(tissues_hit)/length(tissues)
+  #tissues where it is a hit
+  tissues_hit<-allDAMs$ctype[which(allDAMs$var==dg)]
+  summary_vars[dg,3]<-length(tissues_hit)/36 #percentage of tissues
   summary_vars[dg,4]<-paste(tissues_hit, collapse=" | ")
   
   #intogen num
-  if(length(grep(dg, intogen_freqs$MUTATION))>0){
-      ind_dg<-grep(dg, intogen_freqs$MUTATION)
-      ind_cohort<-which(intogen_freqs$COHORT=="ALL COHORTS" & intogen_freqs$CANCER_TYPE=="ALL CANCER_TYPE")
-      
-      summary_vars[dg,5]<-max(intogen_freqs$PERCENTAGE[intersect(ind_dg, ind_cohort)])
-  summary_vars[dg,7]<-max(intogen_freqs$COUNT[intersect(ind_dg, ind_cohort)])
-  summary_vars[dg,9]<-paste(setdiff(unique(intogen_freqs$CANCER_TYPE[ind_dg]), "ALL CANCER_TYPE"), collapse=" | ")
+  if(length(which(intogen_counts_aggr$var==dg))>0){
+      ind_dg<-which(intogen_counts_aggr$var==dg)
+  
+   summary_vars[dg,7]<-sum(intogen_counts_aggr[ind_dg, -74])
+  summary_vars[dg,9]<-paste(colnames(intogen_counts_aggr[,-74])[which(intogen_counts_aggr[ind_dg,-74]>0)], collapse=" | ")
 
   ct_counts<-c()
-  for(ct in setdiff(unique(intogen_freqs$CANCER_TYPE[ind_dg]), "ALL CANCER_TYPE")){
+  for(ct_ind in which(intogen_counts_aggr[ind_dg,-74]>0)){
     
-    ind_cohort<-which(intogen_freqs$CANCER_TYPE==ct)
-    ct_counts<-c(ct_counts, sum(intogen_freqs$COUNT[intersect(ind_dg, ind_cohort)]))
+      ct_counts<-c(ct_counts, intogen_counts_aggr[ind_dg,-74][ct_ind])
   }
-  if(length(setdiff(unique(intogen_freqs$CANCER_TYPE[ind_dg]), "ALL CANCER_TYPE"))>0){
-  names(ct_counts)<-setdiff(unique(intogen_freqs$CANCER_TYPE[ind_dg]), "ALL CANCER_TYPE")
+  if(sum(intogen_counts_aggr[ind_dg,-74])){
+  names(ct_counts)<-colnames(intogen_counts_aggr[,-74])[which(intogen_counts_aggr[ind_dg,-74]>0)]
   all_tiss_intogen[[dg]]<-ct_counts
   }
   }
 
   #COSMIC num
-  ind<-which(COSMIC[,"Gene.name"]==gene & COSMIC$Mutation.AA==mut)
-  ind_sel<-setdiff(ind, ind_cl)
-  summary_vars[dg,10]<-paste(unique(COSMIC$Primary.site[ind_sel]), collapse=" | ")
-  summary_vars[dg,6]<-length(unique(COSMIC$ID_tumour[ind_sel]))/tot_COSMIC
-  summary_vars[dg,8]<-length(unique(COSMIC$ID_tumour[ind_sel]))
+  ind_sel<-which(COSMIC$GENE_SYMBOL==gene & COSMIC$MUTATION_AA==mut)
+  summary_vars[dg,10]<-paste(unique(COSMICprimarysite[ind_sel]), collapse=" | ")
+  summary_vars[dg,8]<-length(unique(COSMIC$COSMIC_SAMPLE_ID[ind_sel]))
 
   ct_counts<-c()
-  for(ct in unique(COSMIC$Primary.site[ind_sel])){
-    ind_tiss<-which(COSMIC$Primary.site==ct)
-    ct_counts<-c(ct_counts, length(unique(COSMIC$ID_tumour[intersect(ind_sel, ind_tiss)])))
+  for(ct in unique(COSMICprimarysite[ind_sel])){
+    ind_tiss<-which(COSMICprimarysite==ct)
+    ct_counts<-c(ct_counts, length(unique(COSMIC$COSMIC_SAMPLE_ID[intersect(ind_sel, ind_tiss)])))
   }
-  if(length(unique(COSMIC$Primary.site[ind_sel]))>0){
-  names(ct_counts)<-unique(COSMIC$Primary.site[ind_sel])
+  if(length(unique(COSMICprimarysite[ind_sel]))>0){
+  names(ct_counts)<-unique(COSMICprimarysite[ind_sel])
   all_tiss_cosmic[[dg]]<-ct_counts
   }
   }
@@ -118,8 +96,7 @@ summary_vars<-data.frame(
   Var=summary_vars[,2],
 Perc_tiss=as.numeric(summary_vars[,3]),
 Tiss=summary_vars[,4],
-Perc_Intogen=as.numeric(summary_vars[,5]),
-Perc_COSMIC=as.numeric(summary_vars[,6]),
+
 Num_Intogen=as.numeric(summary_vars[,7]),
 Num_COSMIC=as.numeric(summary_vars[,8]),
 Type_Intogen=(summary_vars[,9]),
@@ -132,6 +109,6 @@ rownames(summary_vars)<-vars[-ind_remove]
 all_tiss_intogen<-all_tiss_intogen[-ind_remove]
 all_tiss_cosmic<-all_tiss_cosmic[-ind_remove]
 
-save(summary_vars, file="summary_byvar.RData")
-save(all_tiss_intogen, file="all_tiss_intogen_byvar.RData")
-save(all_tiss_cosmic, file="all_tiss_comsic_byvar.RData")
+save(summary_vars, file=paste(home, "/", path_results,"/summary_byvar.RData", sep=""))
+save(all_tiss_intogen, file=paste(home, "/", path_results,"/all_tiss_intogen_byvar.RData", sep=""))
+save(all_tiss_cosmic, file=paste(home, "/", path_results,"/all_tiss_comsic_byvar.RData", sep=""))
