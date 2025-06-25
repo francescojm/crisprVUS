@@ -12,7 +12,7 @@ gdsc2<-read.csv(paste(pathdata,'/raw/GDSC2_fitted_dose_response_27Oct23.csv', se
 
 gdscAll<-rbind(gdsc1,gdsc2)
 
-clTiss<-CMP_annot$model_name[CMP_annot$cancer_type==ctiss]
+clTiss<-CMP_annot$model_id[CMP_annot$cancer_type==ctiss]
 
 #Load DAM info
 load(paste(resultPath,'/',ctiss,'_results.RData',sep=''))
@@ -39,8 +39,8 @@ RES<-lapply(1:nrow(RESTOT),function(x){
   
     if (length(ids)>0){
       print(x)
-      data1<-gdsc1[which(is.element(gdsc1$DRUG_ID,drug_ids) & is.element(gdsc1$CELL_LINE_NAME,cellLines)),]
-      data2<-gdsc2[which(is.element(gdsc2$DRUG_ID,drug_ids) & is.element(gdsc2$CELL_LINE_NAME,cellLines)),]
+      data1<-gdsc1[which(is.element(gdsc1$DRUG_ID,drug_ids) & is.element(gdsc1$SANGER_MODEL_ID,cellLines)),]
+      data2<-gdsc2[which(is.element(gdsc2$DRUG_ID,drug_ids) & is.element(gdsc2$SANGER_MODEL_ID,cellLines)),]
       
       data1<-rbind(data1,data2)
       
@@ -60,8 +60,8 @@ RES<-lapply(1:nrow(RESTOT),function(x){
       
       if(nrow(data1)>0){
         for (i in 1:nrow(data1)){
-          zscores[as.character(data1$DRUG_ID)[i],data1$CELL_LINE_NAME[i]]<-data1$Z_SCORE[i]
-          lnIC50[as.character(data1$DRUG_ID)[i],data1$CELL_LINE_NAME[i]]<-data1$LN_IC50[i]
+          zscores[as.character(data1$DRUG_ID)[i],data1$SANGER_MODEL_ID[i]]<-data1$Z_SCORE[i]
+          lnIC50[as.character(data1$DRUG_ID)[i],data1$SANGER_MODEL_ID[i]]<-data1$LN_IC50[i]
           
           additionalInfos[as.character(data1$DRUG_ID)[i],'screen']<-data1$DATASET[i]
           additionalInfos[as.character(data1$DRUG_ID)[i],'drug_id']<-data1$DRUG_ID[i]
@@ -70,16 +70,16 @@ RES<-lapply(1:nrow(RESTOT),function(x){
           additionalInfos[as.character(data1$DRUG_ID)[i],'min_conc']<-data1$MIN_CONC[i]
           additionalInfos[as.character(data1$DRUG_ID)[i],'max_conc']<-data1$MAX_CONC[i]
           
-          allPattern<-gdscAll$LN_IC50[gdscAll$DATASET==data1$DATASET[i] & gdscAll$DRUG_ID==data1$DRUG_ID[i] & is.element(gdscAll$CELL_LINE_NAME,clTiss)]
-          names(allPattern)<-gdscAll$CELL_LINE_NAME[gdscAll$DATASET==data1$DATASET[i] & gdscAll$DRUG_ID==data1$DRUG_ID[i] & is.element(gdscAll$CELL_LINE_NAME,clTiss)]
+          allPattern<-gdscAll$LN_IC50[gdscAll$DATASET==data1$DATASET[i] & gdscAll$DRUG_ID==data1$DRUG_ID[i] & is.element(gdscAll$SANGER_MODEL_ID,clTiss)]
+          names(allPattern)<-gdscAll$SANGER_MODEL_ID[gdscAll$DATASET==data1$DATASET[i] & gdscAll$DRUG_ID==data1$DRUG_ID[i] & is.element(gdscAll$SANGER_MODEL_ID,clTiss)]
           
           hits<-match(cellLines,names(allPattern)[order(allPattern)])
           n<-length(which(!is.na(allPattern[hits])))
           
           additionalInfos[as.character(data1$DRUG_ID)[i],'rank ratio']<-sum(hits,na.rm = TRUE)/((n*(n+1))/2)
           
-          perctl[as.character(data1$DRUG_ID)[i],data1$CELL_LINE_NAME[i]]<-round(100*match(data1$LN_IC50[i],sort(allPattern))/length(allPattern),2)
-          concRatio[as.character(data1$DRUG_ID)[i],data1$CELL_LINE_NAME[i]]<- data1$LN_IC50[i]/log(data1$MAX_CONC[i])
+          perctl[as.character(data1$DRUG_ID)[i],data1$SANGER_MODEL_ID[i]]<-round(100*match(data1$LN_IC50[i],sort(allPattern))/length(allPattern),2)
+          concRatio[as.character(data1$DRUG_ID)[i],data1$SANGER_MODEL_ID[i]]<- data1$LN_IC50[i]/log(data1$MAX_CONC[i])
           
           bg<-rep(rgb(0,0,255,alpha = 110,maxColorValue = 255),length(allPattern))
           names(bg)<-names(allPattern)
@@ -114,7 +114,7 @@ RES<-lapply(1:nrow(RESTOT),function(x){
         
         if(RESTOT$rank_ratio[x]<1.6 & RESTOT$medFitEff[x]< -0.5 & min(SCREENdata[["screenInfo"]]$'rank ratio', na.rm=T)<1.6){bb<-'match'}else{bb<-''}
         
-        save(SCREENdata,file=paste(resultPath,'/_DR_plots/',ctiss,'/',target,' _ ',bb,paste(gsub("\\?|\\*|!|\\|", "", variant),collapse='AND'),'_screenRes.RData',sep=''))
+        save(SCREENdata,file=paste(resultPath,'/_DR_plots/',ctiss,'/',target,' _ ',bb,paste(gsub("\\?|\\*|!|>|\\|", "", variant),collapse='AND'),'_screenRes.RData',sep=''))
         
       
         
