@@ -1,4 +1,8 @@
-load("~/VUS/VUS/results/20220208/misclass_expr_rank2.RData")
+pathdata <- "data"
+pathscript <- "pipelines"
+resultPath<-'results/20250221/'
+
+load(paste(resultPath, "misclass_expr_rank.RData", sep=""))
 
 misclass_result_all<-misclass_result_all[-1,]
 all_expr<-matrix(nrow=1,ncol=4)
@@ -26,7 +30,7 @@ p1_hist<-ggplot(all_expr, aes(x=as.numeric(cor_other)-as.numeric(cor_tum), label
 print(paste("Number of tested combinations", nrow(misclass_result_all)))
 print(paste("Number of positive tests", sum((as.numeric(all_expr$cor_other)-as.numeric(all_expr$cor_tum))>0, na.rm=T)))
 
-load("~/VUS/VUS/results/20220208/misclass_ess_rank.RData")
+load(paste(resultPath, "misclass_ess_rank.RData", sep=""))
 
 misclass_result_all<-misclass_result_all[-1,]
 all_expr<-matrix(nrow=1,ncol=4)
@@ -42,7 +46,7 @@ for(i in 1:nrow(misclass_result_all)){
 all_expr<-as.data.frame(all_expr)
 colnames(all_expr)<-c("line", "cor_tum", "cor_other", "p_other")
 all_expr$p_other[all_expr$p_other==0]<-0.01
-all_expr$line[all_expr$line!="TYK-nu"]<-NA
+#all_expr$line[all_expr$line!="TYK-nu"]<-NA
 library(ggrepel)
 p2<-ggplot(all_expr, aes(x=as.numeric(cor_tum), y=as.numeric(cor_other), label=line, colour=-log10(as.numeric(p_other))))+geom_point()+theme_classic()+
   geom_abline(slope = 1)+geom_label_repel(max.overlaps = 10)+xlab("Correlation with tumor of origin")+
@@ -54,7 +58,7 @@ p2_hist<-ggplot(all_expr, aes(x=as.numeric(cor_other)-as.numeric(cor_tum), label
 print(paste("Number of tested combinations", nrow(misclass_result_all)))
 print(paste("Number of positive tests", sum((as.numeric(all_expr$cor_other)-as.numeric(all_expr$cor_tum))>0, na.rm=T)))
 
-load("~/VUS/VUS/results/20220208/misclass_drugs_rank.RData")
+load(paste(resultPath, "misclass_drugs_rank.RData", sep=""))
 
 misclass_result_all<-misclass_result_all[-1,]
 all_expr<-matrix(nrow=1,ncol=4)
@@ -83,7 +87,7 @@ p3_hist<-ggplot(all_expr, aes(x=as.numeric(cor_other)-as.numeric(cor_tum), label
 print(paste("Number of tested combinations", nrow(misclass_result_all)))
 print(paste("Number of positive tests", sum((as.numeric(all_expr$cor_other)-as.numeric(all_expr$cor_tum))>0, na.rm=T)))
 
-load("~/VUS/VUS/results/20220208/misclass_prot_rank.RData")
+load(paste(resultPath, "misclass_prot_rank.RData", sep=""))
 
 misclass_result_all<-misclass_result_all[-1,]
 all_expr<-matrix(nrow=1,ncol=4)
@@ -99,7 +103,7 @@ for(i in 1:nrow(misclass_result_all)){
 all_expr<-as.data.frame(all_expr)
 colnames(all_expr)<-c("line", "cor_tum", "cor_other", "p_other")
 all_expr$p_other[all_expr$p_other==0]<-0.01
-all_expr$line[all_expr$line!="TYK-nu"]<-NA
+#all_expr$line[all_expr$line!="TYK-nu"]<-NA
 library(ggrepel)
 p4<-ggplot(all_expr, aes(x=as.numeric(cor_tum), y=as.numeric(cor_other), label=line, colour=-log10(as.numeric(p_other))))+geom_point()+theme_classic()+
   geom_abline(slope = 1)+geom_label_repel(max.overlaps = 10)+xlab("Correlation with tumor of origin")+
@@ -111,34 +115,34 @@ p4_hist<-ggplot(all_expr, aes(x=as.numeric(cor_other)-as.numeric(cor_tum), label
 print(paste("Number of tested combinations", nrow(misclass_result_all)))
 print(paste("Number of positive tests", sum((as.numeric(all_expr$cor_other)-as.numeric(all_expr$cor_tum))>0, na.rm=T)))
 
-pdf("misclass_expr_scatter.pdf",5,5)
+pdf(paste(resultPath, "misclass_expr_scatter.pdf", sep=""),5,5)
 print(p1)
 dev.off()
 
-pdf("misclass_ess_scatter.pdf",5,5)
+pdf(paste(resultPath, "misclass_ess_scatter.pdf", sep=""),5,5)
 print(p2)
 dev.off()
 
-pdf("misclass_drugs_scatter.pdf",5,5)
+pdf(paste(resultPath, "misclass_drugs_scatter.pdf", sep=""),5,5)
 print(p3)
 dev.off()
 
-pdf("misclass_prot_scatter.pdf",5,5)
+pdf(paste(resultPath, "misclass_prot_scatter.pdf", sep=""),5,5)
 print(p4)
 dev.off()
 
-pdf("misclass_expr_hist.pdf",5,5)
+pdf(paste(resultPath, "misclass_expr_hist.pdf", sep=""),5,5)
 print(p1_hist)
 dev.off()
 
-pdf("misclass_ess_hist.pdf",5,5)
+pdf(paste(resultPath, "misclass_ess_hist.pdf", sep=""),5,5)
 print(p2_hist)
 dev.off()
 
-pdf("misclass_drugs_hist.pdf",5,5)
+pdf(paste(resultPath, "misclass_drugs_hist.pdf", sep=""),5,5)
 print(p3_hist)
 dev.off()
 
-pdf("misclass_prot_hist.pdf",5,5)
+pdf(paste(resultPath, "misclass_prot_hist.pdf", sep=""),5,5)
 print(p4_hist)
 dev.off()
