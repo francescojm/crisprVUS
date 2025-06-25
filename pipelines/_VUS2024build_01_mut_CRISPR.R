@@ -1,5 +1,5 @@
 library(sets)
-library(binaryLogic)
+library(binaryLogic)#installed from github
 library(tidyverse)
 library(CoRe)
 
@@ -17,7 +17,7 @@ variantSpectrum<-function(cl_var,gene){
 }
 
 positives<-function(cl_var,gene,variants){
-  return(sort(unique(cl_var$model_name[cl_var$gene_symbol_2023==gene & is.element(cl_var$protein_mutation,variants)])))
+  return(sort(unique(cl_var$model_id[cl_var$gene_symbol_2023==gene & is.element(cl_var$protein_mutation,variants)])))
 }
 
 clasTest<-function(ess_scores,bess_scores,cl_var,gene,vs,vs_cds,display=TRUE,save=NULL){
@@ -86,7 +86,7 @@ clasTest<-function(ess_scores,bess_scores,cl_var,gene,vs,vs_cds,display=TRUE,sav
       
       #if(rankRatio==1 & JI_essMut>0 & medEff< -1){
         if(length(save)>0){
-          pdf(paste(save,gene,'_',paste(gsub("\\?|\\*|!", "", vs),collapse='AND'),'.pdf',sep=''),7.60,7.20)
+          pdf(paste(save,gene,'_',paste(gsub("\\?|\\*|!|>", "", vs),collapse='AND'),'.pdf',sep=''),7.60,7.20)
         }
         
         par(mfrow=c(2,1))
@@ -268,10 +268,10 @@ my.hypTest<-function(x,k,n,N){
 ###### ANALYSIS
 
 # select the tissue and filter the cell lines accordingly
-ts_depFC<-scaled_depFC[,CMP_annot$model_name[CMP_annot$cancer_type==ctiss]]
-ts_bdep<-bdep[,CMP_annot$model_name[CMP_annot$cancer_type==ctiss]]
+ts_depFC<-scaled_depFC[,CMP_annot$model_id[CMP_annot$cancer_type==ctiss]]
+ts_bdep<-bdep[,CMP_annot$model_id[CMP_annot$cancer_type==ctiss]]
 
-ts_cl_variants<-cl_variants[which(is.element(cl_variants$model_name,colnames(ts_depFC))),]
+ts_cl_variants<-cl_variants[which(is.element(cl_variants$model_id,colnames(ts_depFC))),]
 
 # excluding non-coding mutations
 ts_cl_variants<-ts_cl_variants[which(ts_cl_variants$coding),]
