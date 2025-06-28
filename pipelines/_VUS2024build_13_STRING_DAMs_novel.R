@@ -3,16 +3,24 @@ library(openxlsx)
 library(tidyverse)
 library(STRINGdb)
 
+
 path_data<-"/data"
 path_results<-"/results/20250221"
-home<-"E:/VUS_2024build"
+#home<-"E:/VUS_2024build"
+home<-"/Users/francesco.iorio/Dropbox/CODING/vus/VUS 2025/"
 
 setwd(paste(home, "/", path_results, sep=""))
-load("hits.RData")
+
+#load("hits.RData")
+####### I couldn't fine Hits.Rdata #########
+load("_allHits.RData")
+hits<-unique(allHits$GENE)
+
 ##driver genes
 inTOgen_drivers<-read.table(paste(home, '/data/raw/2024-06-18_IntOGen-Drivers/Compendium_Cancer_Genes.tsv', sep=""),sep='\t',stringsAsFactors = FALSE,header=TRUE)
 driver_genes<-unique(inTOgen_drivers$SYMBOL)
 hits_nodriver<-setdiff(hits, driver_genes)
+
 
 ##get STRING interactions
 string_db <- STRINGdb$new( version="12", species=9606,
