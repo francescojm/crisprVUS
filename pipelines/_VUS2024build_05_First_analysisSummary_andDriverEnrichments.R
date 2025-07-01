@@ -108,29 +108,29 @@ dev.off()
 
 
  #uncomment this to collect all tested variants
- fc<-dir(resultPath)
- fc<-grep('testedVariants.RData',fc,value=TRUE)
- 
- totalTestedVariants<-NULL
- for (i in 1:length(fc)){
-   print(i)
-   cty<-strsplit(fc[i],'_testedVariants.RData')[[1]]
-   load(paste(resultPath,'/',fc[i],sep=''))
- 
-   variant_UMIs<-paste(ts_cl_variants$gene_symbol,ts_cl_variants$protein_mutation)
-   unique_variants<-unique(variant_UMIs)
- 
-   curRes<-do.call('rbind',lapply(unique_variants,function(x){
-       idxs<-which(variant_UMIs==x)
-       positiveCls<-paste(ts_cl_variants$model_id[idxs],collapse=', ')
-       res<-cbind(cty,x,ts_cl_variants[idxs[1],c(1,2,4,5,6,7,8,9,10,11,12)],positiveCls)
-       }))
-   totalTestedVariants<-rbind(totalTestedVariants,curRes)
-   }
- 
- save(totalTestedVariants,file=paste(resultPath,'_totalTestedVariants.RData',sep=''))
- write.table(totalTestedVariants,sep="\t",quote=FALSE,file=paste(resultPath,'_totalTestedVariants.tsv',sep=''))
- #[END] uncomment this to collect all tested variants
+ # fc<-dir(resultPath)
+ # fc<-grep('testedVariants.RData',fc,value=TRUE)
+ # 
+ # totalTestedVariants<-NULL
+ # for (i in 1:length(fc)){
+ #   print(i)
+ #   cty<-strsplit(fc[i],'_testedVariants.RData')[[1]]
+ #   load(paste(resultPath,'/',fc[i],sep=''))
+ # 
+ #   variant_UMIs<-paste(ts_cl_variants$gene_symbol,ts_cl_variants$protein_mutation)
+ #   unique_variants<-unique(variant_UMIs)
+ # 
+ #   curRes<-do.call('rbind',lapply(unique_variants,function(x){
+ #       idxs<-which(variant_UMIs==x)
+ #       positiveCls<-paste(ts_cl_variants$model_id[idxs],collapse=', ')
+ #       res<-cbind(cty,x,ts_cl_variants[idxs[1],c(1,2,4,5,6,7,8,9,10,11,12)],positiveCls)
+ #       }))
+ #   totalTestedVariants<-rbind(totalTestedVariants,curRes)
+ #   }
+ # 
+ # save(totalTestedVariants,file=paste(resultPath,'_totalTestedVariants.RData',sep=''))
+ # write.table(totalTestedVariants,sep="\t",quote=FALSE,file=paste(resultPath,'_totalTestedVariants.tsv',sep=''))
+ # #[END] uncomment this to collect all tested variants
 
 load(paste(resultPath,'_totalTestedVariants.RData',sep=''))
 ntestedVarCtypeCombos<-nrow(totalTestedVariants)
@@ -161,47 +161,47 @@ ct_tested_variants<-unlist(lapply(tissues,function(x){length(which(totalTestedVa
 names(ct_tested_variants)<-tissues
 
  #uncomment this to collect all DAMs
- fc<-dir(resultPath)
- fc<-grep('_results_ext.RData',fc,value=TRUE)
- 
- allDAMs<-NULL
- allHits<-NULL
- for (i in 1:length(fc)){
-    print(i)
-    cty<-strsplit(fc[i],'_results_ext.RData')[[1]]
-    load(paste(resultPath,'',fc[i],sep=''))
- 
-    hitsIdxs<-which(RESTOT$medFitEff< -0.5 & RESTOT$rank_ratio< 1.6 & RESTOT$pval_rand < 0.2)
-    currHits<-RESTOT[hitsIdxs,]
-    currDAMs<-decoupleMultipleHits(currHits)
-    rownames(currHits)<-NULL
-    rownames(currDAMs)<-NULL
- 
-    currHits<-currHits[order(currHits$GENE),]
-    currDAMs<-currDAMs[,1:3]
-    currDAMs<-currDAMs[order(currDAMs$GENE),]
-    allDAMs<-rbind(allDAMs,currDAMs)
-    allHits<-rbind(allHits,currHits)
-    }
- 
- 
- 
- save(allHits,file=paste(resultPath,'_allHits.RData',sep=''))
- write.table(allHits,sep="\t",quote=FALSE,file=paste(resultPath,'_allHits.tsv',sep=''))
- save(allDAMs,file=paste(resultPath,'_allDAMs.RData',sep=''))
- write.table(allDAMs,sep="\t",quote=FALSE,file=paste(resultPath,'_allDAMs.tsv',sep=''))
- allDAM_bearing_genes<-sort(unique(allHits$GENE))
- id<-match(allDAM_bearing_genes,allHits$GENE)
- 
- 
- DAMbearing_in<-unlist(lapply(allDAM_bearing_genes,function(x){
-     cid<-which(allHits$GENE==x)
-     analyses<-paste(sort(allHits$ctype[cid]),collapse=' | ')
-   }))
- 
- allDAM_bearing_genes<-cbind(allDAM_bearing_genes,allHits[id,c('inTOgen_driver_for','Act','LoF','ambigous')],DAMbearing_in)
- save(allDAM_bearing_genes,file=paste(resultPath,'_allDAM_bearing_genes.RData',sep=''))
- write.table(allDAM_bearing_genes,quote=FALSE,sep='\t',file=paste(resultPath,'_allDAM_bearing_genes.tsv',sep=''))
+ # fc<-dir(resultPath)
+ # fc<-grep('_results_ext.RData',fc,value=TRUE)
+ # 
+ # allDAMs<-NULL
+ # allHits<-NULL
+ # for (i in 1:length(fc)){
+ #    print(i)
+ #    cty<-strsplit(fc[i],'_results_ext.RData')[[1]]
+ #    load(paste(resultPath,'',fc[i],sep=''))
+ # 
+ #    hitsIdxs<-which(RESTOT$medFitEff< -0.5 & RESTOT$rank_ratio< 1.6 & RESTOT$pval_rand < 0.2)
+ #    currHits<-RESTOT[hitsIdxs,]
+ #    currDAMs<-decoupleMultipleHits(currHits)
+ #    rownames(currHits)<-NULL
+ #    rownames(currDAMs)<-NULL
+ # 
+ #    currHits<-currHits[order(currHits$GENE),]
+ #    currDAMs<-currDAMs[,1:3]
+ #    currDAMs<-currDAMs[order(currDAMs$GENE),]
+ #    allDAMs<-rbind(allDAMs,currDAMs)
+ #    allHits<-rbind(allHits,currHits)
+ #    }
+ # 
+ # 
+ # 
+ # save(allHits,file=paste(resultPath,'_allHits.RData',sep=''))
+ # write.table(allHits,sep="\t",quote=FALSE,file=paste(resultPath,'_allHits.tsv',sep=''))
+ # save(allDAMs,file=paste(resultPath,'_allDAMs.RData',sep=''))
+ # write.table(allDAMs,sep="\t",quote=FALSE,file=paste(resultPath,'_allDAMs.tsv',sep=''))
+ # allDAM_bearing_genes<-sort(unique(allHits$GENE))
+ # id<-match(allDAM_bearing_genes,allHits$GENE)
+ # 
+ # 
+ # DAMbearing_in<-unlist(lapply(allDAM_bearing_genes,function(x){
+ #     cid<-which(allHits$GENE==x)
+ #     analyses<-paste(sort(allHits$ctype[cid]),collapse=' | ')
+ #   }))
+ # 
+ # allDAM_bearing_genes<-cbind(allDAM_bearing_genes,allHits[id,c('inTOgen_driver_for','Act','LoF','ambigous')],DAMbearing_in)
+ # save(allDAM_bearing_genes,file=paste(resultPath,'_allDAM_bearing_genes.RData',sep=''))
+ # write.table(allDAM_bearing_genes,quote=FALSE,sep='\t',file=paste(resultPath,'_allDAM_bearing_genes.tsv',sep=''))
  #[END] uncomment this to collect all DAMS
 
 load(paste(resultPath,'_allHits.RData',sep=''))
@@ -235,6 +235,17 @@ names(nDAMbearing)<-tissues
 print(paste(median(nDAMbearing),'median number of DAM bearing genes across cancer types'))
 print(paste('min = ', min(nDAMbearing),'for',names(sort(nDAMbearing))[1]))
 print(paste('max = ', max(nDAMbearing),'for',names(sort(nDAMbearing, decreasing=T))[1]))
+# enrichment of cancer driver genes among the DAM-bearing genes
+
+nDAMs<-c()
+for(t in tissues){
+  allDAMs_sel2<-allDAMs[allDAMs$ctype==t,]
+  nDAMs<-c(nDAMs, length(allDAMs_sel2$GENE))
+}
+names(nDAMs)<-tissues
+print(paste(median(nDAMs),'median number of DAMs across cancer types'))
+print(paste('min = ', min(nDAMbearing),'for',names(sort(nDAMs))[1]))
+print(paste('max = ', max(nDAMbearing),'for',names(sort(nDAMs, decreasing=T))[1]))
 # enrichment of cancer driver genes among the DAM-bearing genes
 
 inTOgen_drivers<-read.table(paste(pathdata,"/raw/2024-06-18_IntOGen-Drivers/Compendium_Cancer_Genes.tsv", sep=""), sep='\t',stringsAsFactors = FALSE,header=TRUE)
