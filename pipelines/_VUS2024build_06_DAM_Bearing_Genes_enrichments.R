@@ -26,8 +26,13 @@ inTOgen_drivers<-unique(sort(inTOgen_drivers$SYMBOL))
 load(paste(resultPath,'/_totalTestedVariants.RData',sep=''))
 background<-unique(totalTestedVariants$gene_symbol)
 
-ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+# uncomment these lines to download ensembl again. 
+#ensembl <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
 #ensembl <- useEnsembl("ensembl", dataset = "hsapiens_gene_ensembl",mirror = "asia")
+#save(ensembl,file=paste(pathdata,'/ensembe.RData',sep=''))
+
+# load ensemble downloaded from asia mirror on 20250701 at 18:31
+load(paste(pathdata,'/ensembe.RData',sep=''))
 
 # Converting all dam bearing genes into entrez id
 gene_symbols <- unique(allDAM_bearing_genes$allDAM_bearing_genes)
