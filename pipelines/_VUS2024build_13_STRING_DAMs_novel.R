@@ -36,13 +36,13 @@ score<-sum(int[int[,1] %in% Genesmapped[Genesmapped[,1] %in% hits_nodriver,2] & 
 library(tidyverse)
 
 ## empirical pvalue: sample random genes in the background of all tested genes not in drivers and compute the STRING interaction score with known drivers
-load("E:/VUS_2024build/results/20250221/_totalTestedVariants.RData")
+load("_totalTestedVariants.RData")
 all_genes_nodriver<-setdiff(unique(totalTestedVariants$gene_symbol), driver_genes)
 
 set.seed(84905750)
 scorerand<-c()
 
-  for(j in 210:1000){
+  for(j in 1:1000){
     print(j)
     rand_genes<-sample(all_genes_nodriver, length(hits_nodriver), replace = F)
     dfrand<-data.frame(gene=unique(c(rand_genes, driver_genes)))
@@ -50,16 +50,22 @@ scorerand<-c()
     intrand<-string_db$get_interactions(Randmapped$STRING_id)
     scorerand<-c(scorerand, sum(intrand[intrand[,1] %in% Randmapped[Randmapped[,1] %in% rand_genes,2] & intrand[,2] %in% Randmapped[Randmapped[,1] %in% driver_genes,2],3])+
       sum(intrand[intrand[,2] %in% Randmapped[Randmapped[,1] %in% rand_genes,2] & intrand[,1] %in% Randmapped[Randmapped[,1] %in% driver_genes,2],3]))
-
+    hist(scorerand,xlim=c(min(c(scorerand,score)),max(c(scorerand,score))))
+    abline(v=score)
+    print(length(which(scorerand>=score))/j)
   }
 
-save(scorerand, file="scorerand_novel.RData")
+save(scorerand, file="scorerand_novel_FI.RData")
 
 df<-data.frame(First_neighbours=scorerand)
 
-pdf("PPI_neigghbours_novel.pdf",5,4)
-ggplot(df, aes(x=First_neighbours))+geom_density()+ geom_vline(xintercept = scoremod, linetype="dashed", 
-                                                               color = "red", size=1)+theme_classic()
+pdf("PPI_neigghbours_novel_FI.pdf",5,4)
+ggplot(df, aes(x=First_neighbours))+geom_density()+
+  geom_vline(xintercept = score, linetype="dashed", 
+        color = "red", size=1)+theme_classic()
 
 dev.off()
+
+
+
 
