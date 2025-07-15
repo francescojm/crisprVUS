@@ -1,7 +1,41 @@
 
+
 clc<-read.xlsx('../../data/raw/CL_tissue_ctype_colors.xlsx',sheet = 2,rowNames = TRUE)
 
 load('_allHits.RData')
+
+hist(allHits$percBasalEXP_of_ps_cl,border=FALSE,col='darkcyan',main=paste('Basal expression percentile of the hosting gene\nin cell line(s) arbouring the DAMs'),ylim=c(0,100),xlab='th')
+
+availableExpValues<-length(which(!is.na(allHits$percBasalEXP_of_ps_cl) & allHits$percBasalEXP_of_ps_cl> -Inf))
+
+
+pp<-round(100*length(which(allHits$avgBasalEXP_fpkm_in_ps_cl>=1))/availableExpValues,2)
+
+print(paste(pp, '% of DAMs are in genes expressed in the cell line in which the DAM is observed'))
+
+pdf('exploration/figures/percExpressedDAMs.pdf',5,5)
+pie(c(pp,100-pp),col=c('darkcyan','gray'),border=FALSE,labels = c('Expressed','not Expressed'))
+dev.off()
+
+print(paste(round(100*length(which(allHits$percBasalEXP_of_ps_cl>50))/availableExpValues,2), '% of DAMs are in genes whith a basal expression over the 50th percentile of the cell line in which the DAM is observed'))
+print(paste(round(100*length(which(allHits$percBasalEXP_of_ps_cl>80))/availableExpValues,2), '% of DAMs are in genes whith a basal expression over the 80th percentile of the cell line in which the DAM is observed'))
+print(paste(round(100*length(which(allHits$percBasalEXP_of_ps_cl==100))/availableExpValues,2), '% of DAMs are in genes whith a basal expression over the highest percentile of the cell line in which the DAM is observed'))
+
+pdf('exploration/figures/DAMexpPercentiles.pdf',5,5)
+hist(allHits$percBasalEXP_of_ps_cl,border=FALSE,col='darkcyan',main=paste('Basal expression percentile of the hosting gene\nin cell line(s) arbouring the DAMs'),ylim=c(0,100),xlab='th')
+dev.off()
+
+
+pdf('exploration/figures/essentialityDAMmatching.pdf',5,5)
+hist(100*allHits$matching,border=FALSE,col='gray',main='')
+dev.off()
+
+pdf('exploration/figures/essentialityDAMmatchingHGp.pdf',4,6)
+plot(-log10(allHits$hypTest_p),bg=adjustcolor("blue", alpha.f = 0.3),col=NA,pch=21,cex=2,frame.plot=FALSE,ylab='-log10(HG p)')
+abline(h= -log10(0.05),lty=2)
+dev.off()
+
+
 
 cdg<-read.table('../../data/raw/2024-06-18_IntOGen-Drivers/Compendium_Cancer_Genes.tsv',sep='\t',header=TRUE)
 cdg<-unique(cdg$SYMBOL)
