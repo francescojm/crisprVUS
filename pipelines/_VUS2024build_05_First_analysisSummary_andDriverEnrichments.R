@@ -66,7 +66,6 @@ tissues<-sort(tissues)
 load(paste(pathdata, "/Robj/basal_exp.RData", sep=""))
 
 
-
 decoupleMultipleHits<-function(hitTable){
   vars<-hitTable$var
   iimultiple<-grep(' | ',vars)
@@ -410,5 +409,9 @@ print(paste('DAM-bearing genes enriched for cancer type specific abmgigous drive
 print(paste('DAM-bearing genes enriched for cancer type specific OG drivers for ',length(which(COMPOSITIONp[3,]<0.05)),' cancer types (',round(100*length(which(COMPOSITIONp[3,]<0.05))/36,2),'%)',sep=''))
 
 
+## Fig. 2D
+barplot(sort(-log10(summary(as.factor(summary(as.factor(paste(allDAMs$GENE,allDAMs$var)),length(allDAMs$GENE))))+1),decreasing=TRUE),border=FALSE)
+
+sort(summary(as.factor(paste(allDAMs$GENE,allDAMs$var)),length(allDAMs$GENE)),decreasing=TRUE)[1:10]
 
 
