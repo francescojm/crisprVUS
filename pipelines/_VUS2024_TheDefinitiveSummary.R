@@ -30,6 +30,10 @@ pdf('exploration/figures/essentialityDAMmatching.pdf',5,5)
 hist(100*allHits$matching,border=FALSE,col='gray',main='')
 dev.off()
 
+length(which(allHits$matching==1))/length(allHits$matching)
+
+
+
 pdf('exploration/figures/essentialityDAMmatchingHGp.pdf',5,6)
 plot(-log10(allHits$hypTest_p),bg=adjustcolor("blue", alpha.f = 0.3),col=NA,pch=21,cex=2,frame.plot=FALSE,ylab='-log10(HG p)')
 abline(h= -log10(0.05),lty=2)
