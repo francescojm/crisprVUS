@@ -181,6 +181,7 @@ paste("Number of DAM-bearing genes known as driver:", length(intersect(hits, dri
 
 paste("Number of DAM-bearing genes not known as driver:", length(setdiff(hits, driver_genes)))
 
+
 df<-data.frame(counts=table(table(hits)))
 df$counts.Freq<-log10(df$counts.Freq+1)
 df$counts.Var1<-as.numeric(as.character(df$counts.Var1))
@@ -211,7 +212,8 @@ for(ctiss in tissues){
 ind<-which(results[[ctiss]]$rank_ratio<1.6 & results[[ctiss]]$medFitEff< -.5 & results[[ctiss]]$pval_rand < 0.2)
 
 for(i in 1:length(ind)){
-gene_ctiss<-results[[ctiss]]$GENE[ind[i]]
+print(i)
+  gene_ctiss<-results[[ctiss]]$GENE[ind[i]]
 vars_ctiss<-unlist(strsplit(results[[ctiss]]$var[ind[i]], " \\| "))
 lines_var<-cl_variants$model_id[cl_variants$gene_symbol_2023==gene_ctiss & cl_variants$protein_mutation %in% vars_ctiss & CMP_annot$cancer_type[match(cl_variants$model_id, CMP_annot$model_id)]==ctiss]
 lines<-c(lines, intersect(lines_var, lines_screened))
@@ -222,6 +224,7 @@ df<-data.frame(line=lines, cancer_type=CMP_annot$cancer_type[match(lines, CMP_an
 df$cancer_type<-factor(df$cancer_type, levels=c(names(sort(table(df$cancer_type), decreasing=T))))
 df$line_by_type<-NA
 for(ctiss in tissues){
+  print(ctiss)
   line_by_type<-df$line[df$cancer_type==ctiss]
   df$line_by_type[df$cancer_type==ctiss]<-match(line_by_type, unique(line_by_type))
 }
@@ -281,7 +284,6 @@ for(col in 1:8){
   dev.off()
 
 }
-
 
 
 ##################################

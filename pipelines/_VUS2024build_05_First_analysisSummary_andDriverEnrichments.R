@@ -411,7 +411,11 @@ print(paste('DAM-bearing genes enriched for cancer type specific OG drivers for 
 
 ## Fig. 2D
 barplot(sort(-log10(summary(as.factor(summary(as.factor(paste(allDAMs$GENE,allDAMs$var)),length(allDAMs$GENE))))+1),decreasing=TRUE),border=FALSE)
-
 sort(summary(as.factor(paste(allDAMs$GENE,allDAMs$var)),length(allDAMs$GENE)),decreasing=TRUE)[1:10]
+
+load('results/20250221/_allHits.RData')
+
+DAMbgsAcrossNanalysis<-sort(summary(as.factor(allHits$GENE),length(allHits$GENE)),decreasing=TRUE)
+#barplot(sort(-log10(summary(as.factor(summary(as.factor(allDAMs$GENE),length(allDAMs$GENE))))+1),decreasing=TRUE),border=FALSE)
 
 
