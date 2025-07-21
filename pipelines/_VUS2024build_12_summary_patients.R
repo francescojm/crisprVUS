@@ -2,16 +2,10 @@ library(reshape2)
 library(ggplot2)
 library(openxlsx)
 
-#load("hits.RData")
-
-#####################################################################
-################################### BY VAR
-#########################################################################
-
 #######################
-##matching cancer types
+##load data
 ##################
-home<-"E:/VUS_2024build/"
+home<-"E:/crisprVUS"
 path_data<-"/data"
 path_results<-"/results/20250221"
 
@@ -21,10 +15,10 @@ inTOgen_drivers<-read.table(paste(home, '/data/raw/2024-06-18_IntOGen-Drivers/Co
 driver_genes<-unique(inTOgen_drivers$SYMBOL)
 
 setwd(paste(home, "/", path_results, sep=""))
-
 load("summary_byvar.RData")
+load("all_tiss_comsic_byvar.RData")
+load("all_tiss_intogen_byvar.RData")
 
-##load data
 tissues<-gsub("_results_ext.RData", "", list.files(pattern="results_ext.RData"))
 
 results<-list()
@@ -36,15 +30,9 @@ for(ctiss in tissues){
 }
 names(results)<-tissues
 
-#load("results_with_expr.RData")
-
-#library(tidyverse)
-#gene_annot <- read_csv(paste(home, "/",path_data, "/gene_identifiers_20191101.csv", sep=""))
-
-#CMP_annot <- read_csv(paste(home, "/",path_data,"/model_list_20210611.csv", sep="")) # from https://cog.sanger.ac.uk/cmp/download/model_list_20210611.csv
-
 mapping<-read.csv(paste(home, path_data,'/raw/intOGen ctype mapping_AS.csv',sep=''),header = TRUE,row.names = 1, sep=";")
 
+#reshape cancer-type mapping
 cancer_match_long_CMP<-c()
 cancer_match_long_into<-c()
 for(i in 1:nrow(mapping)){
@@ -62,13 +50,9 @@ for(i in 1:nrow(mapping)){
 mapping_cosmic<-cbind(cancer_match_long_CMP, cancer_match_long_into)
 
 ###########################
-########### for each variant, indicate the number of tissues in intogen, cosmic
+########### for each variant, indicate the number of tissues in intogen, cosmic, each cancer type separately
 ############################
 
-#################
-#### each cancer type separately
-###################
-load("summary_byvar.RData")
 summary_vars$ID<-paste(summary_vars$Gene, summary_vars$Var, sep="-")
 summary_vars$Num_tiss<-summary_vars$Perc_tiss*36
 summary_vars$Num_Intogen[is.na(summary_vars$Num_Intogen)]<-0
@@ -81,9 +65,6 @@ summary_vars$Matching_inboth<-NA
 summary_vars$Matching_union<-NA
 summary_vars$Match_tiss_Intogen_name<-NA
 summary_vars$Match_tiss_COSMIC_name<-NA
-
-load("all_tiss_comsic_byvar.RData")
-load("all_tiss_intogen_byvar.RData")
 
 for(i in 1:nrow(summary_vars)){
   type_tiss<-unique(unlist(strsplit(summary_vars[i, "Tiss"], " \\| ")))
@@ -104,6 +85,8 @@ for(i in 1:nrow(summary_vars)){
   summary_vars$Match_tiss_Intogen_name[i]<-paste(intersect(type_tiss, matching_intogen), collapse="|")
   summary_vars$Match_tiss_COSMIC_name[i]<-paste(intersect(type_tiss, matching_cosmic), collapse="|")
 }
+
+####include the number of patients separately for intOGen and COSMIC
 
 summary_vars_bytiss<-rbind(summary_vars,summary_vars)
 summary_vars_bytiss$tissue<-"ALL"
@@ -162,6 +145,60 @@ for(i in 1:nrow(summary_vars)){
 
 #####save list of DAMs  with patient anno
 write.xlsx(summary_vars_bytiss, file=paste(home, path_results, "/summary_DAMs_bytiss.xlsx", sep=""))
+
+
+##select patients with DAMs with any cancer type (also non-matching)
+summary_vars_all<-summary_vars_bytiss[summary_vars_bytiss$tissue=="ALL",c("Gene", "Var", "ID", "Num_Intogen","Num_COSMIC", "num_patients", "database")]
+
+print(paste("Number of patients with a DAM, any cancer type:", sum(summary_vars_all$num_patients)))
+
+ord_IDs<-order(summary_vars_all$Num_Intogen+summary_vars_all$Num_COSMIC, decreasing=T)
+ordered_IDs<-unique(summary_vars_all$ID[ord_IDs])
+summary_vars_all$ID<-factor(summary_vars_all$ID, levels=c(unique(summary_vars_all$ID[ord_IDs])))
+summary_vars_all<-summary_vars_all[ord_IDs,]
+
+ordered_IDs_known<-unique(summary_vars_all$ID[which(summary_vars_all$Gene %in% driver_genes)])
+ordered_IDs_unreported<-unique(summary_vars_all$ID[-which(summary_vars_all$Gene %in% driver_genes)])
+
+summary_vars_all_known<-summary_vars_all[which(summary_vars_all$Gene %in% driver_genes),]
+summary_vars_all_unreported<-summary_vars_all[-which(summary_vars_all$Gene %in% driver_genes),]
+
+pdf(paste(home, path_results, "/top_DAMs_all_known.pdf", sep=""), 7,6)
+ggplot(subset(summary_vars_all_known, ID %in% ordered_IDs_known[1:20]), aes(x=ID, y=num_patients))+geom_bar(stat="identity")+theme_classic()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+dev.off()
+
+pdf(paste(home, path_results, "/top_DAMs_all_unreported.pdf", sep=""), 7,6)
+ggplot(subset(summary_vars_all_unreported, ID %in% ordered_IDs_unreported[1:20]), aes(x=ID, y=num_patients))+geom_bar(stat="identity")+theme_classic()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+dev.off()
+
+##select patients with DAMs with any matching cancer type 
+summary_vars_matching<-summary_vars_bytiss[summary_vars_bytiss$tissue=="ALL_MATCHING",c("Gene", "Var", "ID", "Num_Intogen","Num_COSMIC", "num_patients", "database")]
+
+print(paste("Number of patients with a DAM, matching cancer type:", sum(summary_vars_matching$num_patients)))
+
+ordered_IDs<-names(sort(unlist(by(summary_vars_matching, summary_vars_matching$ID,function(x){sum(x$num_patients)})), decreasing=T))
+summary_vars_matching$ID<-factor(summary_vars_matching$ID, levels=c(ordered_IDs))
+
+ordered_IDs_known<-unique(summary_vars_matching$ID[match(ordered_IDs, summary_vars_matching$ID)][which(summary_vars_matching[match(ordered_IDs, summary_vars_matching$ID),"Gene"] %in% driver_genes)])
+ordered_IDs_unreported<-unique(summary_vars_matching$ID[match(ordered_IDs, summary_vars_matching$ID)][-which(summary_vars_matching[match(ordered_IDs, summary_vars_matching$ID),"Gene"] %in% driver_genes)])
+
+summary_vars_tiss<-summary_vars_bytiss[-which(summary_vars_bytiss$tissue %in% c("ALL_MATCHING","ALL")),c("Gene", "Var", "ID", "Num_Intogen","Num_COSMIC","tissue", "num_patients", "database")]
+summary_vars_tiss$ID<-factor(summary_vars_tiss$ID, levels=c(ordered_IDs))
+
+summary_vars_tiss_known<-summary_vars_tiss[which(summary_vars_tiss$Gene %in% driver_genes),]
+summary_vars_tiss_unreported<-summary_vars_tiss[-which(summary_vars_tiss$Gene %in% driver_genes),]
+
+CL_colors<-read.xlsx(paste(home, path_data, "/raw/CL_tissue_ctype_colors.xlsx", sep=""), sheet = 2)
+CL_colors_v<-CL_colors$Color_hex_code
+names(CL_colors_v)<-CL_colors$Cancer.Type
+
+pdf(paste(home, path_results, "/top_DAMs_matching_known.pdf", sep=""), 10,6)
+ggplot(subset(summary_vars_tiss_known, ID %in% ordered_IDs_known[1:20]), aes(x=ID, y=num_patients, fill=tissue))+geom_bar(stat="identity")+scale_fill_manual(values=CL_colors_v)+theme_classic()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+dev.off()
+
+pdf(paste(home, path_results, "/top_DAMs_matching_unreported.pdf", sep=""), 8,6)
+ggplot(subset(summary_vars_tiss_unreported, ID %in% ordered_IDs_unreported[1:24]), aes(x=ID, y=num_patients, fill=tissue))+geom_bar(stat="identity")+scale_fill_manual(values=CL_colors_v)+theme_classic()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+dev.off()
 
 
 ###########################
@@ -235,6 +272,9 @@ write.xlsx(summary_sel, file=paste(home, path_results, "/DAMs_patients_match.xls
 
 print(paste("Number of DAMs in at least one patient (any type)", length(which(rowSums(summary_vars[,c("Num_COSMIC","Num_Intogen")], na.rm=T)>0))))
 print(paste("Number of DAMs in at least one patient (same type)", length(which(summary_vars[,c("Matching_union")]>0))))
+
+print(paste("Number of DAMbgs with a DAM in at least one patient (any type)", length(unique(summary_vars$Gene[which(rowSums(summary_vars[,c("Num_COSMIC","Num_Intogen")], na.rm=T)>0)]))))
+print(paste("Number of DAMbgs with a DAM in at least one patient (same type)", length(unique(summary_vars$Gene[which(summary_vars[,c("Matching_union")]>0)]))))
 
 print(paste("Number of non-driver genes with at least one matching patient", length(unique(summary_sel$Gene[summary_sel$driver=="Non-driver"]))))
 
