@@ -369,6 +369,14 @@ for(dg in hits_nodriver){
 }
 
 
+df<-data.frame(DAMbg=names(sort(rowSums(summary_nodrivers), decreasing=T)), ntissues=sort(rowSums(summary_nodrivers), decreasing=T))
+df$DAMbg<-factor(df$DAMbg, levels=c(names(sort(rowSums(summary_nodrivers), decreasing=T))))
+
+pdf(paste(home, path_results, "/exploration/figures/DAMbgs_unreported_ntiss.pdf", sep=""), 12, 4)
+ggplot(subset(df, ntissues>2), aes(x=DAMbg, y=ntissues))+geom_bar(stat="identity")+theme_classic()+theme(axis.text.x = element_text(angle=90, size=10))+
+  scale_fill_manual(values = c("#0072B2",  "#E69F00"))+ guides(fill=guide_legend(title="Hit"))
+dev.off()
+
 
 df<-data.frame(counts=c(colSums(summary_drivers=="Known Found", na.rm=T), colSums(summary_drivers=="Novel", na.rm=T), colSums(summary_nodrivers==1)),
                type=rep(c("Known Driver", "Known Driver","Not Known as Driver"),each=length(tissues)), tissue=tissues)

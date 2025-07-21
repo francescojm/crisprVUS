@@ -278,6 +278,15 @@ print(paste("Number of DAMbgs with a DAM in at least one patient (same type)", l
 
 print(paste("Number of non-driver genes with at least one matching patient", length(unique(summary_sel$Gene[summary_sel$driver=="Non-driver"]))))
 
+print(paste("Number of DAMs in unreported DAMbgs in at least one patient (any type)", 
+            length(which(rowSums(summary_vars[,c("Num_COSMIC","Num_Intogen")], na.rm=T)>0 & summary_vars$Gene %in% setdiff(summary_vars$Gene, driver_genes)))))
+print(paste("Number of DAMs in unreported DAMbgs in at least one patient (same type)", 
+            length(which(summary_vars[,c("Matching_union")]>0 & summary_vars$Gene %in% setdiff(summary_vars$Gene, driver_genes)))))
+print(paste("Number of unreported DAMbgs with a DAM in at least one patient (any type)", 
+            length(unique(summary_vars$Gene[which(rowSums(summary_vars[,c("Num_COSMIC","Num_Intogen")], na.rm=T)>0 & summary_vars$Gene %in% setdiff(summary_vars$Gene, driver_genes))]))))
+print(paste("Number of unreported DAMbgs with a DAM in at least one patient (same type)", 
+            length(unique(summary_vars$Gene[which(summary_vars[,c("Matching_union")]>0 & summary_vars$Gene %in% setdiff(summary_vars$Gene, driver_genes))]))))
+
 
 #############################
 ##### Circular plot
@@ -292,7 +301,10 @@ summary_vars_bytiss$PolyPhen<-gsub("\\(.*\\)", "", summary_vars_bytiss$PolyPhen)
 
 #write.xlsx(summary_vars_bytiss, file="Full_var_list.xlsx")
 
+print(paste("Number of DAMs predicted deleterious", length(which(((summary_vars$SIFT %in% c("deleterious", "deleterious_low_confidence"))|(summary_vars$PolyPhen %in% c("possibly_damaging", "probably_damaging")))))))
+print(paste("Number of DAMbgs with DAMs predicted deleterious", length(unique(summary_vars$Gene[which(((summary_vars$SIFT %in% c("deleterious", "deleterious_low_confidence"))|(summary_vars$PolyPhen %in% c("possibly_damaging", "probably_damaging"))))]))))
 print(paste("Number of DAMs in at least one patient (same type) AND predicted deleterious", length(which(summary_vars[,c("Matching_union")]>0 & ((summary_vars$SIFT %in% c("deleterious", "deleterious_low_confidence"))|(summary_vars$PolyPhen %in% c("possibly_damaging", "probably_damaging")))))))
+print(paste("Number of DAMbgs with DAMs in at least one patient (same type) AND predicted deleterious", length(unique(summary_vars$Gene[which(summary_vars[,c("Matching_union")]>0 & ((summary_vars$SIFT %in% c("deleterious", "deleterious_low_confidence"))|(summary_vars$PolyPhen %in% c("possibly_damaging", "probably_damaging"))))]))))
 
 summary_vars_sel<-summary_vars_bytiss[which(summary_vars_bytiss$Perc_tiss>(0)),]
 summary_vars_sel<-summary_vars_sel[which(summary_vars_sel$tissue=="ALL_MATCHING"),]
@@ -306,8 +318,6 @@ summary_vars_sel$driver<-ifelse(summary_vars_sel$Gene %in% driver_genes, "Driver
 summary_vars_sel<-summary_vars_sel[which(summary_vars_sel$tot_match<0),]
 
 print(paste("Number of DAMs in at least one patient (same type)", nrow(summary_vars_sel[summary_vars_sel$database=="COSMIC",])))
-
-print(paste("Number of DAMs in at least one patient (same type) AND predicted deleterious", nrow(summary_vars_sel[summary_vars_sel$database=="COSMIC" & ((summary_vars_sel$SIFT %in% c("deleterious", "deleterious_low_confidence"))|(summary_vars_sel$PolyPhen %in% c("possibly_damaging", "probably_damaging"))),])))
 
 ord<-order(summary_vars_sel[,"tot_patients"], decreasing=T)
 summary_vars_sel$ID<-factor(summary_vars_sel$ID, levels=unique(summary_vars_sel$ID[ord]))
