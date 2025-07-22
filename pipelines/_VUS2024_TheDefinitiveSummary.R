@@ -117,3 +117,78 @@ dev.off()
 
 plot(manual_labels$x,manual_labels$y)
 text(manual_labels$x,manual_labels$y,srt=90,labels = unique(allHits$ctype),col = clc[unique(allHits$ctype), 1])
+
+load('_allHits.RData')
+load('_totalTestedVariants.RData')
+
+load('_incl_cl_annot.RData')
+
+load('_allDAMs.RData')
+
+nhits_across_ctypes<-summary(as.factor(allDAMs$ctype))
+ntested_variants_across_ctypes<-summary(as.factor(totalTestedVariants$cty))
+ncellLines_across_ctypes<-summary(as.factor(incl_cl_annot$cancer_type))
+
+commoncl<-intersect(names(nhits_across_ctypes),names(ncellLines_across_ctypes))
+
+
+plot(ncellLines_across_ctypes[commoncl],
+     nhits_across_ctypes[commoncl],
+     bg=clc[commoncl,1],pch=21,xlab='n.cell lines',ylab='n.hits',cex=1.2,frame.plot=FALSE)
+abline(a=0,b=1)
+cor(ncellLines_across_ctypes[commoncl],nhits_across_ctypes[commoncl])
+
+
+plot(ntested_variants_across_ctypes[commoncl],
+     nhits_across_ctypes[commoncl],
+     bg=clc[commoncl,1],pch=21,xlab='n.tested variants',ylab='n.hits',cex=1.2)
+
+
+plot(log10(ntested_variants_across_ctypes[commoncl]/ncellLines_across_ctypes[commoncl]),
+     nhits_across_ctypes[commoncl]/ncellLines_across_ctypes[commoncl],
+     col=clc[commoncl,1],pch=16,xlab='log10(avg n.tested variants per cell line)',ylab='avg. n.hits per cell line',
+     cex=1.5,frame.plot=FALSE)
+identify(log10(ntested_variants_across_ctypes[commoncl]/ncellLines_across_ctypes[commoncl]),
+         nhits_across_ctypes[commoncl]/ncellLines_across_ctypes[commoncl],commoncl)
+
+abline(a=0,b=1)
+
+cor(ntested_variants_across_ctypes[commoncl]/ncellLines_across_ctypes[commoncl],
+     nhits_across_ctypes[commoncl]/ncellLines_across_ctypes[commoncl])
+
+percHitsPerCls<-100*(nhits_across_ctypes[commoncl]/ncellLines_across_ctypes[commoncl])/
+  (ntested_variants_across_ctypes[commoncl]/ncellLines_across_ctypes[commoncl])
+
+percHitsPerCls<-sort(percHitsPerCls)
+
+par(mar=c(4,15,1,1))
+barplot(percHitsPerCls,col=clc[names(percHitsPerCls),1],horiz=TRUE,las=2,border=FALSE,
+        xlab='avg % of DAMs per cell line')
+
+genomicallyQuite<-c(1, 2, 3, 7, 9, 22, 23, 30, 31, 34, 35)
+genomicallyIntermediate<-c(4, 6, 8, 11, 15, 16, 19, 20, 27, 28, 29)
+genomicallyNoisy<-c(5, 9, 12, 13, 14, 18, 21, 24, 25, 26, 32, 33, 36)
+genomicallyQuite<-commoncl[genomicallyQuite]
+genomicallyIntermediate<-commoncl[genomicallyIntermediate]
+genomicallyNoisy<-commoncl[genomicallyNoisy]
+
+par(mar=c(2,12,2,2))
+boxplot(percHitsPerCls[c(genomicallyIntermediate,genomicallyNoisy)],
+        percHitsPerCls[genomicallyQuite],horizontal=TRUE,
+        names = c('intermediately quite and noisy cancers',
+                  paste('genomically quite cancers\n(few mutations; driven by fusions or copy number)')),las=2,frame.plot=FALSE)
+
+t.test(percHitsPerCls[genomicallyQuite],
+        percHitsPerCls[c(genomicallyIntermediate,genomicallyNoisy)])
+
+
+mostFreqDAMbgs<-sort(summary(as.factor(allDAMs$GENE),10000),decreasing=TRUE)
+
+mostFreqDAMbgs<-mostFreqDAMbgs[setdiff(names(mostFreqDAMbgs),inTOgen_drivers$SYMBOL)]
+
+tmp<-mostFreqDAMbgs[1:64]
+
+tmp<-tmp[setdiff(names(tmp),
+                 c("REV1", "DIDO1", "FANCM", "FASN", "ATAD5", "CHD1", "LTBP3","MCPH1", "PLCE1", "USP1", "ACACA", "AGAP2", "ATIC"))]
+
+barplot(tmp,las=2,border=FALSE,col='orange',ylab='DAMbgs in n cancer type specific analyses')
