@@ -1,5 +1,5 @@
 
-
+library(openxlsx)
 clc<-read.xlsx('../../data/raw/CL_tissue_ctype_colors.xlsx',sheet = 2,rowNames = TRUE)
 
 load('_allHits.RData')
@@ -7,7 +7,6 @@ load('_allHits.RData')
 hist(allHits$percBasalEXP_of_ps_cl,border=FALSE,col='darkcyan',main=paste('Basal expression percentile of the hosting gene\nin cell line(s) arbouring the DAMs'),ylim=c(0,100),xlab='th')
 
 availableExpValues<-length(which(!is.na(allHits$percBasalEXP_of_ps_cl) & allHits$percBasalEXP_of_ps_cl> -Inf))
-
 
 pp<-round(100*length(which(allHits$avgBasalEXP_fpkm_in_ps_cl>=1))/availableExpValues,2)
 
@@ -33,9 +32,6 @@ dev.off()
 length(which(allHits$matching==1))/length(allHits$matching)
 
 
-
-
-
 pdf('exploration/figures/essentialityDAMmatchingHGp.pdf',5,6)
 plot(-log10(allHits$hypTest_p),bg=adjustcolor("blue", alpha.f = 0.3),col=NA,pch=21,cex=2,frame.plot=FALSE,ylab='-log10(HG p)')
 abline(h= -log10(0.05),lty=2)
@@ -48,9 +44,7 @@ cdg<-unique(cdg$SYMBOL)
 
 #allHits<-allHits[which(!is.element(allHits$GENE,cdg)),]
 
-
 load('summary_byvar.RData')
-
 
 library(ggplot2)
 library(ggrepel)
@@ -131,55 +125,132 @@ ncellLines_across_ctypes<-summary(as.factor(incl_cl_annot$cancer_type))
 
 commoncl<-intersect(names(nhits_across_ctypes),names(ncellLines_across_ctypes))
 
+par(mfrow=c(2,2))
 
 plot(ncellLines_across_ctypes[commoncl],
      nhits_across_ctypes[commoncl],
-     bg=clc[commoncl,1],pch=21,xlab='n.cell lines',ylab='n.hits',cex=1.2,frame.plot=FALSE)
-abline(a=0,b=1)
-cor(ncellLines_across_ctypes[commoncl],nhits_across_ctypes[commoncl])
+     bg=clc[commoncl,1],pch=21,xlab='n analysed cell lines',ylab='n hits',cex=1.5,frame.plot=FALSE)
 
+tt<-cor.test(ncellLines_across_ctypes[commoncl],nhits_across_ctypes[commoncl])$p.value
+
+legend('topleft',cex=0.8,c(
+  paste('R = ',round(cor(ncellLines_across_ctypes[commoncl],nhits_across_ctypes[commoncl]),2)),
+  paste('p = ',round(tt,3)
+              )))
 
 plot(ntested_variants_across_ctypes[commoncl],
      nhits_across_ctypes[commoncl],
-     bg=clc[commoncl,1],pch=21,xlab='n.tested variants',ylab='n.hits',cex=1.2)
+     bg=clc[commoncl,1],pch=21,xlab='n tested variants',ylab='n hits',cex=1.5,frame.plot=FALSE)
 
+tt<-cor.test(ntested_variants_across_ctypes[commoncl],nhits_across_ctypes[commoncl])$p.value
 
-plot(log10(ntested_variants_across_ctypes[commoncl]/ncellLines_across_ctypes[commoncl]),
-     nhits_across_ctypes[commoncl]/ncellLines_across_ctypes[commoncl],
-     col=clc[commoncl,1],pch=16,xlab='log10(avg n.tested variants per cell line)',ylab='avg. n.hits per cell line',
-     cex=1.5,frame.plot=FALSE)
-identify(log10(ntested_variants_across_ctypes[commoncl]/ncellLines_across_ctypes[commoncl]),
-         nhits_across_ctypes[commoncl]/ncellLines_across_ctypes[commoncl],commoncl)
-
-abline(a=0,b=1)
-
-cor(ntested_variants_across_ctypes[commoncl]/ncellLines_across_ctypes[commoncl],
-     nhits_across_ctypes[commoncl]/ncellLines_across_ctypes[commoncl])
+legend('bottomright',cex=0.8,c(
+       paste('R = ',round(cor(ntested_variants_across_ctypes[commoncl],nhits_across_ctypes[commoncl]),2)),
+       paste('p = ',format(tt,scientific=TRUE,digits=3))
+       ))
 
 percHitsPerCls<-100*(nhits_across_ctypes[commoncl]/ncellLines_across_ctypes[commoncl])/
   (ntested_variants_across_ctypes[commoncl]/ncellLines_across_ctypes[commoncl])
 
-percHitsPerCls<-sort(percHitsPerCls)
 
-par(mar=c(4,15,1,1))
-barplot(percHitsPerCls,col=clc[names(percHitsPerCls),1],horiz=TRUE,las=2,border=FALSE,
-        xlab='avg % of DAMs per cell line')
+tt<-cor.test(ntested_variants_across_ctypes[commoncl],percHitsPerCls[commoncl])$p.value
 
-genomicallyQuite<-c(1, 2, 3, 7, 9, 22, 23, 30, 31, 34, 35)
-genomicallyIntermediate<-c(4, 6, 8, 11, 15, 16, 19, 20, 27, 28, 29)
-genomicallyNoisy<-c(5, 9, 12, 13, 14, 18, 21, 24, 25, 26, 32, 33, 36)
-genomicallyQuite<-commoncl[genomicallyQuite]
-genomicallyIntermediate<-commoncl[genomicallyIntermediate]
-genomicallyNoisy<-commoncl[genomicallyNoisy]
+plot(ntested_variants_across_ctypes[commoncl],percHitsPerCls[commoncl],
+     bg=clc[names(ntested_variants_across_ctypes),1],pch=21,cex=1.5,xlab='n. tested variants',
+     ylab='Signal to Noise Ratio',frame.plot = FALSE)
+
+legend('topright',cex=0.8,c(
+  paste('R = ',round(cor(ntested_variants_across_ctypes[commoncl],percHitsPerCls[commoncl]),2)),
+  paste('p = ',format(tt,scientific=TRUE,digits=3))
+))
+
+plot(0,0,type='n',frame.plot=FALSE,xaxt='n',yaxt='n',xlab='',ylab='')
+legend('center',sort(commoncl),fill=clc[sort(commoncl),1],cex=0.2)
+
+
+percHitsPerCls<-sort(percHitsPerCls,decreasing=TRUE)
+
+par(mar=c(16,4,0,0))
+dd<-barplot(percHitsPerCls,col=clc[names(percHitsPerCls),1],las=2,border=FALSE,
+        ylab='Avg % of DAMs per cell line')
+
+genomicallyQuite<-c(
+  "Acute Myeloid Leukemia",
+  "B-Cell Non-Hodgkin's Lymphoma",
+  "B-Lymphoblastic Leukemia",
+  "Biliary Tract Carcinoma",
+  "Burkitt's Lymphoma",
+  "Ewing's Sarcoma",
+  "Mesothelioma",
+  "Neuroblastoma",
+  "Prostate Carcinoma",
+  "Rhabdomyosarcoma",
+  "T-Cell Non-Hodgkin's Lymphoma",
+  "T-Lymphoblastic Leukemia"
+)
+genomicallyIntermediate<-c(
+  "Bladder Carcinoma",
+  "Breast Carcinoma",
+  "Cervical Carcinoma",
+  "Chronic Myelogenous Leukemia",
+  "Esophageal Squamous Cell Carcinoma",
+  "Glioma",
+  "Head and Neck Carcinoma",
+  "Kidney Carcinoma",
+  "Oral Cavity Carcinoma",
+  "Osteosarcoma",
+  "Squamous Cell Lung Carcinoma"
+)
+
+genomicallyNoisy<-c(
+  "Colorectal Carcinoma",
+  "Endometrial Carcinoma",
+  "Esophageal Carcinoma",
+  "Gastric Carcinoma",
+  "Glioblastoma",
+  "Hepatocellular Carcinoma",
+  "Melanoma",
+  "Non-Small Cell Lung Carcinoma",
+  "Ovarian Carcinoma",
+  "Pancreatic Carcinoma",
+  "Plasma Cell Myeloma",
+  "Small Cell Lung Carcinoma"
+)
+
+
+par(xpd=TRUE)
+points(dd[sort(match(genomicallyQuite,names(percHitsPerCls)))],
+       rep(-0.03,length(genomicallyQuite)),pch=16,col='darkgray',cex=1.8)
+
+points(dd[sort(match(genomicallyIntermediate,names(percHitsPerCls)))],
+       rep(-0.035,length(genomicallyIntermediate)),pch=17,col='darkgray',cex=1.5)
+
+points(dd[sort(match(genomicallyNoisy,names(percHitsPerCls)))],
+       rep(-0.035,length(genomicallyNoisy[1:12])),pch=18,col='darkgray',cex=1.8)
 
 par(mar=c(2,12,2,2))
-boxplot(percHitsPerCls[c(genomicallyIntermediate,genomicallyNoisy)],
+boxplot(percHitsPerCls[genomicallyNoisy],
+        percHitsPerCls[genomicallyIntermediate],
         percHitsPerCls[genomicallyQuite],horizontal=TRUE,
-        names = c('intermediately quite and noisy cancers',
+        names = c('genomically noisy cancers',
+                  'genomically intermediate cancers',
                   paste('genomically quite cancers\n(few mutations; driven by fusions or copy number)')),las=2,frame.plot=FALSE)
 
 t.test(percHitsPerCls[genomicallyQuite],
-        percHitsPerCls[c(genomicallyIntermediate,genomicallyNoisy)])
+        percHitsPerCls[genomicallyIntermediate])
+
+t.test(percHitsPerCls[genomicallyQuite],
+       percHitsPerCls[genomicallyNoisy])
+
+t.test(percHitsPerCls[genomicallyIntermediate],
+       percHitsPerCls[genomicallyNoisy])
+
+t.test(percHitsPerCls[genomicallyQuite],
+       percHitsPerCls[c(genomicallyIntermediate,genomicallyNoisy)])
+
+t.test(percHitsPerCls[c(genomicallyQuite,genomicallyIntermediate)],
+       percHitsPerCls[genomicallyNoisy])
+
 
 
 mostFreqDAMbgs<-sort(summary(as.factor(allDAMs$GENE),10000),decreasing=TRUE)
