@@ -3,7 +3,7 @@ library(binaryLogic)#installed from github
 library(tidyverse)
 library(CoRe)
 
-RR_th<-1.71
+RR_th<-1.6
 
 ##functions called in the following code
 variantSpectrum<-function(cl_var,gene){
