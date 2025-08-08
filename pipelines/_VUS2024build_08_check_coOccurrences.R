@@ -44,6 +44,10 @@ mapping<-read.csv("data/raw/intOGen ctype mapping_AS.csv",header = TRUE,row.name
 
 act_driver_genes<-inTOgen_drivers$SYMBOL[inTOgen_drivers$ROLE=="Act"]
 
+###########################################
+#### Line-level analysis
+############################################
+
 ####cell lines with co-occurrent DAM and essential driver mutation or only with DAM and not an essential driver mutation
 co_occurrent<-c()
 non_co_occurrent<-c()
@@ -100,15 +104,21 @@ dev.off()
 
 write.csv(df_tiss, file="results/20250221/co_occurrence_lines_pertiss.csv", quote = F, row.names = F)
 
+#################################################################
+########## DAM-level analysis
+##################################################################
+
 ####DAMs co-occurrent or not co-occurrent with an essential driver mutation (separately for each cell line with the DAM, so each DAM can be computed multiple times)
 co_occurrent_d<-c()
 non_co_occurrent_d<-c()
 ct_co_occurrent_d<-c()
 ct_non_co_occurrent_d<-c()
 
-for(i in 1:nrow(allDAMs)){
-  ct<-allDAMs$ctype[i]
-  ind<-which(cl_variants$gene_symbol_2023==allDAMs$GENE[i] & cl_variants$protein_mutation==allDAMs$var[i] & cl_variants$model_id %in% CMP_annot$model_id[CMP_annot$cancer_type==ct])
+unreportedDAMs<-allDAMs[allDAMs$GENE %in% setdiff(allDAMs$GENE, driver_genes),]
+
+for(i in 1:nrow(unreportedDAMs)){
+  ct<-unreportedDAMs$ctype[i]
+  ind<-which(cl_variants$gene_symbol_2023==unreportedDAMs$GENE[i] & cl_variants$protein_mutation==unreportedDAMs$var[i] & cl_variants$model_id %in% CMP_annot$model_id[CMP_annot$cancer_type==ct])
   cl<-cl_variants$model_id[ind]
   cl<-intersect(cl, colnames(bdep))
   
