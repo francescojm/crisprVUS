@@ -141,7 +141,7 @@ Optimal_clasTest<-function(ess_scores,bess_scores,cl_var,gene,vs,vs_cds,display=
     
     #res$rank_ratio[res$rank_ratio<RR_th]<-1 #serviva perché altrimenti si selezionano sempre varianti presenti in una sola linea
 #   if(length(which(res$rank_ratio<RR_th))==0)
-    if(length(which(res$rank_ratio<RR_th & res$medFitEff))==0){
+    if(length(which(res$rank_ratio<RR_th & res$medFitEff)==0)){
       res<-res[which(res$rank_ratio==min(res$rank_ratio)),]
     } else {
       res<-res[which(res$rank_ratio<RR_th & res$medFitEff< -.5),]
