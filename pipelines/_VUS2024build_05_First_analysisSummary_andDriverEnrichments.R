@@ -63,7 +63,6 @@ incl_cl_annot<-CMP_annot
 
 tissues<-sort(tissues)
 
-load(paste(pathdata, "/Robj/basal_exp.RData", sep=""))
 
 
 decoupleMultipleHits<-function(hitTable){
@@ -129,7 +128,7 @@ dev.off()
  # 
  # save(totalTestedVariants,file=paste(resultPath,'_totalTestedVariants.RData',sep=''))
  # write.table(totalTestedVariants,sep="\t",quote=FALSE,file=paste(resultPath,'_totalTestedVariants.tsv',sep=''))
- # #[END] uncomment this to collect all tested variants
+ #[END] uncomment this to collect all tested variants
 
 load(paste(resultPath,'_totalTestedVariants.RData',sep=''))
 ntestedVarCtypeCombos<-nrow(totalTestedVariants)
