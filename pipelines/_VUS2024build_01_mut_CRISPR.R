@@ -143,7 +143,8 @@ Optimal_clasTest<-function(ess_scores,bess_scores,cl_var,gene,vs,vs_cds,display=
     if(length(which(res$rank_ratio<RR_th))==0){
       res<-res[which(res$rank_ratio==min(res$rank_ratio)),]
     } else {
-      res<-res[which(res$rank_ratio<RR_th),]
+      res<-res[which(res$rank_ratio<RR_th & res$medFitEff< -.5),]
+      #res<-res[which(res$rank_ratio<RR_th,]
     }
     
     if(nrow(res)>1){
