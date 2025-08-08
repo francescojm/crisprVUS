@@ -252,6 +252,9 @@ pdf("results/20250221/co_occurrence_patients_civic_nodriver.pdf", 10, 7)
 ggplot(df, aes(x=tissue, fill=cooccurrent))+geom_bar()+ theme_bw()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 dev.off()
 
+print("Exclusive/Co-occurrent ratio:")
+table(df$cooccurrent)
+
 df<-data.frame(patient=patients_sel_nodriver, tissue=ct_sel_nodriver, variant=var_sel_nodriver, cooccurrent=ifelse(patients_sel_nodriver %in% patients_civic, "Co-occurrent", "Non-co-occurrent"))
 df$tissue<-factor(df$tissue, levels=c(names(sort(table(df$tissue), decreasing=T))))
 
@@ -272,6 +275,7 @@ df_prop$tissue<-factor(df_prop$tissue, levels=names(sort(prop_tot, decreasing=T)
 pdf("results/20250221/co_occurrence_patients_civic_prop_nodriver.pdf", 7, 5)
 ggplot(df_prop, aes(x=tissue, fill=cooccurrent, y=prop))+geom_bar(stat="identity")+ theme_bw()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 dev.off()
+
 
 ##################################################################
 gene_sel_drugs_nodriver<-gene_sel_drugs[-which(gene_sel_drugs %in% drivers)]
@@ -307,4 +311,70 @@ pdf("results/20250221/co_occurrence_patients_civic_drugs_prop_nodriver.pdf", 7, 
 ggplot(df_prop, aes(x=tissue, fill=cooccurrent, y=prop))+geom_bar(stat="identity")+ theme_bw()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 dev.off()
 
+#####################
+### DAMs in drivers
+#######################
+
+gene_sel_driver<-gene_sel[which(gene_sel %in% drivers)]
+ct_sel_driver<-ct_sel[which(gene_sel %in% drivers)]
+var_sel_driver<-var_sel[which(gene_sel %in% drivers)]
+patients_sel_driver<-patients_sel[which(gene_sel %in% drivers)]
+
+df<-data.frame(patient=patients_sel_nodriver, tissue=ct_sel_nodriver, variant=var_sel_nodriver)
+df$tissue<-factor(df$tissue, levels=c(names(sort(table(df$tissue), decreasing=T))))
+
+ggplot(df, aes(x=tissue, fill=tissue))+geom_bar()+ theme_bw()+theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+
+df<-data.frame(patient=patients_sel_driver, tissue=ct_sel_driver, gene=gene_sel_driver, variant=var_sel_driver, cooccurrent=ifelse(patients_sel_driver %in% patients_civic, "Co-occurrent", "Non-co-occurrent"))
+
+##remove canonical tissues
+
+cancer_match_long_CMP<-c()
+cancer_match_long_into<-c()
+for(i in 1:nrow(mapping)){
+  cancer_match_long_into<-c(cancer_match_long_into, unlist(strsplit(mapping[i,1], " \\| ")))
+  cancer_match_long_CMP<-c(cancer_match_long_CMP, rep(rownames(mapping)[i],length(unlist(strsplit(mapping[i,1], " \\| ")))))
+}
+mapping_intogen<-cbind(cancer_match_long_CMP, cancer_match_long_into)
+
+for(g in unique(df$gene)){
+  ct_known_into<-unique(inTOgen_drivers$CANCER_TYPE[which(inTOgen_drivers$SYMBOL==g)])
+  ct_known<- mapping_intogen[mapping_intogen[,2] %in%  ct_known_into,1]
+  ind_toremove<-which(df$gene==g & df$tissue %in% ct_known)
+  if(length(ind_toremove)>0){
+    df<-df[-ind_toremove,]
+  }
+  
+}
+
+df$gene<-factor(df$gene, levels=c(names(sort(table(df$gene), decreasing=T))))
+CL_colors<-read.xlsx(paste(home, path_data, "/raw/CL_tissue_ctype_colors.xlsx", sep=""), sheet = 2)
+CL_colors_v<-CL_colors$Color_hex_code
+names(CL_colors_v)<-CL_colors$Cancer.Type
+pdf(paste(home, path_results, "/exploration/figures/Drivers_barplot_novelpatients.pdf", sep=""),8, 5)
+ggplot(df, aes(x=gene, fill=tissue))+geom_bar()+scale_fill_manual(values=CL_colors_v)+theme_classic()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+dev.off()
+
+##compute proportions of patients
+library(dplyr)
+
+df_summary <- df %>%
+  group_by(tissue, gene) %>%
+  summarise(count = n(), .groups = 'drop')%>%
+  mutate(prop = count / patients_ct[as.character(tissue)])
+
+totals <- df_summary %>%
+  group_by(gene) %>%
+  summarise(total_prop = sum(prop), .groups = "drop")
+
+df_summary <- df_summary %>%
+  left_join(totals, by = "gene") %>%
+  mutate(gene = fct_reorder(gene, total_prop, .desc = TRUE)) %>%
+  select(-total_prop)
+
+
+pdf(paste(home, path_results, "/exploration/figures/Drivers_barplot_novelpatients_prop.pdf", sep=""),8, 5)
+ggplot(df_summary, aes(x=gene, y=prop, fill=tissue))+geom_bar(stat="identity")+scale_fill_manual(values=CL_colors_v)+theme_classic()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+dev.off()
 
