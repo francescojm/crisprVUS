@@ -3,6 +3,8 @@ library(binaryLogic)#installed from github
 library(tidyverse)
 library(CoRe)
 
+RR_th<-1.71
+
 ##functions called in the following code
 variantSpectrum<-function(cl_var,gene){
   
@@ -137,11 +139,11 @@ Optimal_clasTest<-function(ess_scores,bess_scores,cl_var,gene,vs,vs_cds,display=
                display = FALSE)
     }))
     
-    #res$rank_ratio[res$rank_ratio<1.6]<-1 #serviva perché altrimenti si selezionano sempre varianti presenti in una sola linea
-    if(length(which(res$rank_ratio<1.6))==0){
+    #res$rank_ratio[res$rank_ratio<RR_th]<-1 #serviva perché altrimenti si selezionano sempre varianti presenti in una sola linea
+    if(length(which(res$rank_ratio<RR_th))==0){
       res<-res[which(res$rank_ratio==min(res$rank_ratio)),]
     } else {
-      res<-res[which(res$rank_ratio<1.6),]
+      res<-res[which(res$rank_ratio<RR_th),]
     }
     
     if(nrow(res)>1){
@@ -159,7 +161,7 @@ Optimal_clasTest<-function(ess_scores,bess_scores,cl_var,gene,vs,vs_cds,display=
     }
   
   
-  if(res$rank_ratio<1.6 & res$medFitEff< -.5){
+  if(res$rank_ratio<RR_th & res$medFitEff< -.5){
     curr_var<-setdiff(unlist(str_split(res$var,'[ | ]')),'')
     curr_var_cds<-setdiff(unlist(str_split(res$var_cds,'[ | ]')),'')
     
@@ -336,7 +338,7 @@ write.table(RESTOT,quote=FALSE,sep='\t',row.names = FALSE,file=paste(resultPath,
 write.table(ts_cl_variants,quote=FALSE,sep='\t',row.names = FALSE,file=paste(resultPath,'/',ctiss,'_testedVariants.tsv',sep=''))
 
 ####Save all genes with DAMs in an RData object
-DAM_bearing_genes<-unique(RESTOT$GENE[RESTOT$rank_ratio<1.6 & RESTOT$medFitEff< -.5 ])
+DAM_bearing_genes<-unique(RESTOT$GENE[RESTOT$rank_ratio<RR_th & RESTOT$medFitEff< -.5 ])
 DAM_bearing_genes<-unique(DAM_bearing_genes)
 
 save(DAM_bearing_genes, file=paste(resultPath,'/',ctiss,'_DAM_bearing_genes.RData',sep=''))
