@@ -6,7 +6,7 @@ library(tidyverse)
 pathdata <- "data"
 pathscript <- "../crisprVUS/pipelines"
 #resultPath<-'results/20250807_RR_th1.71/'
-resultPath<-'results/20250808_reproducibility_test_th1.6/'
+resultPath<-'results/20250808_bugFixed_and_RR_th.1.71/'
 
 ###loading input data
 gene_annot <- read_csv(paste(pathdata, "/raw/gene_identifiers_20241212.csv", sep=""))
