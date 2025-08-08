@@ -87,29 +87,40 @@ for(i in 1:nrow(summary_vars)){
 }
 
 ####include the number of patients separately for intOGen and COSMIC
-
+#When the tissue is "ALL", num_patients indicate the total number of patients in any cancer type in the database indicated in the database column
 summary_vars_bytiss<-rbind(summary_vars,summary_vars)
 summary_vars_bytiss$tissue<-"ALL"
 summary_vars_bytiss$num_patients<-c(summary_vars[,c("Num_COSMIC")], summary_vars[,c( "Num_Intogen")])
 summary_vars_bytiss$database<-c(rep("COSMIC", nrow(summary_vars)), rep("Intogen", nrow(summary_vars)))
 
+
+
 for(i in 1:nrow(summary_vars)){
+  
+  #for each variant, gets the tissues where it is a DAM, and the tissue where the DAM was found in Intogen and COSMIC
   type_tiss<-unique(unlist(strsplit(summary_vars[i, "Tiss"], " \\| ")))
   type_intogen<-na.omit(unique(unlist(strsplit(summary_vars[i, "Type_Intogen"], " \\| "))))
   type_cosmic<-na.omit(unique(unlist(strsplit(summary_vars[i, "Type_COSMIC"], " \\| "))))
 
+  #maps intogen and cosmic tissues to CMP tissues
   matching_intogen<-unique(mapping_intogen[which(mapping_intogen[,2] %in% type_intogen),1])
   matching_cosmic<-unique(mapping_cosmic[which(mapping_cosmic[,2] %in% type_cosmic),1])
   
+  #if there are tissues with found patients matching the tissue where the variant is a DAM,
+  #for each CMP tissue, it looks for all the corresponding Intogen/COSMIC tissues (separately for each database)
+  #and sums the number of patients found (info stored in all_tiss_cosmic, all_tiss_intogen)
+  
   ###matched tissues cosmic
   if(length(intersect(type_tiss, matching_cosmic))>0){
-  num_cosmic_bytiss<-c()
+  num_cosmic_bytiss<-c() # vector that stores the number of patients per matching tissue
   for(tiss in intersect(type_tiss, matching_cosmic)){
     tiss_cosmic<-mapping_cosmic[mapping_cosmic[,1]==tiss,2]
     num_cosmic_bytiss<-c(num_cosmic_bytiss, sum(unlist(all_tiss_cosmic[[summary_vars$ID[i]]][tiss_cosmic]), na.rm=T))
   }
-  num_cosmic_bytiss<-c(num_cosmic_bytiss, sum(num_cosmic_bytiss))
+  num_cosmic_bytiss<-c(num_cosmic_bytiss, sum(num_cosmic_bytiss)) #the sum of the matching patients is then appended to num_cosmic_bytiss
   names(num_cosmic_bytiss)<-c(intersect(type_tiss, matching_cosmic), "ALL_MATCHING")
+  
+  #create a data.frame with info to add to summary_vars_bytiss
   toadd<-data.frame(summary_vars[i,], num_patients=num_cosmic_bytiss)
   toadd$tissue<-names(num_cosmic_bytiss)
   toadd$database<-"COSMIC"
@@ -238,6 +249,8 @@ summary_vars_bytiss$PolyPhen<-vars_vep_summ$polyphen_prediction[match(summary_va
 summary_vars_bytiss$SIFT<-gsub("\\(.*\\)", "", summary_vars_bytiss$SIFT)
 summary_vars_bytiss$PolyPhen<-gsub("\\(.*\\)", "", summary_vars_bytiss$PolyPhen)
 
+write.xlsx(summary_vars_bytiss, file="summaryDAMs_patientsANDfunction.xlsx")
+
 #######also the initial summary_vars
 summary_vars$driver<-ifelse(summary_vars$Gene %in% driver_genes, "Driver", "Non-driver")
 summary_vars$SIFT<-vars_vep_summ$sift_prediction[match(summary_vars$ID, vars_vep_summ$var)]
@@ -245,8 +258,6 @@ summary_vars$PolyPhen<-vars_vep_summ$polyphen_prediction[match(summary_vars$ID, 
 
 summary_vars$SIFT<-gsub("\\(.*\\)", "", summary_vars$SIFT)
 summary_vars$PolyPhen<-gsub("\\(.*\\)", "", summary_vars$PolyPhen)
-
-
 
 
 summary_sel<-summary_vars_bytiss[which(summary_vars_bytiss$Perc_tiss>(0)),]
@@ -305,6 +316,9 @@ print(paste("Number of DAMs predicted deleterious", length(which(((summary_vars$
 print(paste("Number of DAMbgs with DAMs predicted deleterious", length(unique(summary_vars$Gene[which(((summary_vars$SIFT %in% c("deleterious", "deleterious_low_confidence"))|(summary_vars$PolyPhen %in% c("possibly_damaging", "probably_damaging"))))]))))
 print(paste("Number of DAMs in at least one patient (same type) AND predicted deleterious", length(which(summary_vars[,c("Matching_union")]>0 & ((summary_vars$SIFT %in% c("deleterious", "deleterious_low_confidence"))|(summary_vars$PolyPhen %in% c("possibly_damaging", "probably_damaging")))))))
 print(paste("Number of DAMbgs with DAMs in at least one patient (same type) AND predicted deleterious", length(unique(summary_vars$Gene[which(summary_vars[,c("Matching_union")]>0 & ((summary_vars$SIFT %in% c("deleterious", "deleterious_low_confidence"))|(summary_vars$PolyPhen %in% c("possibly_damaging", "probably_damaging"))))]))))
+
+print(paste("Number of DAMs in unreported DAMbgs predicted deleterious", length(which(((summary_vars$SIFT %in% c("deleterious", "deleterious_low_confidence"))|(summary_vars$PolyPhen %in% c("possibly_damaging", "probably_damaging"))) & summary_vars$Gene %in% setdiff(summary_vars$Gene, driver_genes)))))
+print(paste("Number of DAMs in unreported DAMbgs in at least one patient (same type) AND predicted deleterious", length(which(summary_vars[,c("Matching_union")]>0 & summary_vars$Gene %in% setdiff(summary_vars$Gene, driver_genes) & ((summary_vars$SIFT %in% c("deleterious", "deleterious_low_confidence"))|(summary_vars$PolyPhen %in% c("possibly_damaging", "probably_damaging")))))))
 
 summary_vars_sel<-summary_vars_bytiss[which(summary_vars_bytiss$Perc_tiss>(0)),]
 summary_vars_sel<-summary_vars_sel[which(summary_vars_sel$tissue=="ALL_MATCHING"),]
@@ -557,17 +571,60 @@ dev.off()
 load(file=paste(home, path_results, "/_DR_plots/summary_drugs.RData", sep=""))
 write.csv(summary_drugs, file="summary_drugs.csv", row.names = F, quote = F)
 
-print(paste("Number of SAMs that are also reliable DAMs", nrow(summary_vars_bytiss[which(summary_vars_bytiss$ID %in% summary_drugs$var_id & summary_vars_bytiss$tissue=="ALL" & summary_vars_bytiss$database=="COSMIC"),])))
-
-print(paste("Number of SAMs that are also reliable DAMs in at least one patient", nrow(summary_vars_bytiss[which(summary_vars_bytiss$ID %in% summary_drugs$var_id & summary_vars_bytiss$tissue=="ALL" & summary_vars_bytiss$database=="COSMIC" & summary_vars_bytiss$num_patients>0 ),])))
 
 write.xlsx(summary_vars_bytiss[which(summary_vars_bytiss$ID %in% summary_drugs$var_id),], paste(home, path_results, "/vars_depANDdrug.xlsx", sep=""))
-
-print(paste("Number of SAMs that are also reliable DAMs in at least one patient (same type)", nrow(summary_vars_bytiss[which(summary_vars_bytiss$ID %in% summary_drugs$var_id & summary_vars_bytiss$tissue=="ALL_MATCHING" & summary_vars_bytiss$database=="COSMIC" & summary_vars_bytiss$num_patients>0 ),])))
 
 print(paste("Number of SAMs that are also reliable DAMs in at least one patient (same type) and predicted deleterious", 
             nrow(summary_vars_bytiss[which(summary_vars_bytiss$ID %in% summary_drugs$var_id & summary_vars_bytiss$tissue=="ALL_MATCHING" & summary_vars_bytiss$database=="COSMIC" & summary_vars_bytiss$num_patients>0 &
                                              ((summary_vars_bytiss$SIFT %in% c("deleterious", "deleterious_low_confidence"))|(summary_vars_bytiss$PolyPhen %in% c("possibly_damaging", "probably_damaging") ))),])))
+##############
+##
+
+load("_allDAMs.RData")
+
+str_SAMs<-paste(summary_drugs$genes, summary_drugs$vars,summary_drugs$tiss)
+str_DAMs<-paste(allDAMs$GENE, gsub("p.", "", allDAMs$var), allDAMs$ctype)
+
+
+SAMandDAM<-summary_drugs[which(str_SAMs %in% str_DAMs),]
+write.xlsx(SAMandDAM, file="allSAMs.xlsx")
+
+print(paste("Number of SAMs that are also reliable DAMs ", nrow(SAMandDAM)))
+
+SAMandDAM$tiss<-factor(SAMandDAM$tiss, levels=c(names(sort(table(SAMandDAM$tiss), decreasing=T))))
+SAMandDAM$genes<-factor(SAMandDAM$genes, levels=c(names(sort(table(SAMandDAM$genes), decreasing=T))))
+pdf("SAMs_by_tiss.pdf", 7, 5)
+ggplot(SAMandDAM, aes(x=tiss))+geom_bar()+theme_classic()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+dev.off()
+pdf("SAMs_by_gene.pdf", 7, 5)
+ggplot(SAMandDAM, aes(x=genes))+geom_bar()+theme_classic()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+dev.off()
+
+
+SAMs_inpatients<-intersect(paste(SAMandDAM$genes, SAMandDAM$vars), paste(summary_vars_bytiss[which(summary_vars_bytiss$tissue=="ALL" & summary_vars_bytiss$num_patients>0), c("Gene")], summary_vars_bytiss[which(summary_vars_bytiss$tissue=="ALL" & summary_vars_bytiss$num_patients>0), c("Var")]))
+SAMs_inmatchingpatients<-intersect(paste(SAMandDAM$genes, SAMandDAM$vars), paste(summary_vars_bytiss[which(summary_vars_bytiss$tissue=="ALL_MATCHING" & summary_vars_bytiss$num_patients>0), c("Gene")], summary_vars_bytiss[which(summary_vars_bytiss$tissue=="ALL_MATCHING" & summary_vars_bytiss$num_patients>0), c("Var")]))
+SAMs_inmatchingpatients_ANDdeleterious<-intersect(paste(SAMandDAM$genes, SAMandDAM$vars), 
+                                                  paste(summary_vars_bytiss[which(summary_vars_bytiss$tissue=="ALL_MATCHING" & summary_vars_bytiss$num_patients>0 &
+                                                                                    ((summary_vars_bytiss$SIFT %in% c("deleterious", "deleterious_low_confidence"))|(summary_vars_bytiss$PolyPhen %in% c("possibly_damaging", "probably_damaging") ))), c("Gene")], 
+                                                        summary_vars_bytiss[which(summary_vars_bytiss$tissue=="ALL_MATCHING" & summary_vars_bytiss$num_patients>0 &
+                                                                                    ((summary_vars_bytiss$SIFT %in% c("deleterious", "deleterious_low_confidence"))|(summary_vars_bytiss$PolyPhen %in% c("possibly_damaging", "probably_damaging") ))), c("Var")]))
+
+str_SAMsandDAMs<-paste(SAMandDAM$genes, SAMandDAM$vars)
+SAMandDAM_inmatchingpatients<-SAMandDAM[which(str_SAMsandDAMs %in% SAMs_inmatchingpatients), ]
+SAMandDAM_inmatchingpatients_ANDdeleterious<-SAMandDAM[which(str_SAMsandDAMs %in% SAMs_inmatchingpatients_ANDdeleterious), ]
+
+SAMandDAM_inmatchingpatients$tiss<-factor(SAMandDAM_inmatchingpatients$tiss, levels=c(names(sort(table(SAMandDAM_inmatchingpatients$tiss), decreasing=T))))
+SAMandDAM_inmatchingpatients$genes<-factor(SAMandDAM_inmatchingpatients$genes, levels=c(names(sort(table(SAMandDAM_inmatchingpatients$genes), decreasing=T))))
+pdf("SAMs_by_tiss_inmatching.pdf", 6, 5)
+ggplot(SAMandDAM_inmatchingpatients, aes(x=tiss))+geom_bar()+theme_classic()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+dev.off()
+pdf("SAMs_by_gene_inmatching.pdf", 6, 5)
+ggplot(SAMandDAM_inmatchingpatients, aes(x=genes))+geom_bar()+theme_classic()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+dev.off()
+
+SAMandDAM[-which(SAMandDAM$genes %in% driver_genes),]
+SAMandDAM_inmatchingpatients[-which(SAMandDAM_inmatchingpatients$genes %in% driver_genes),]
+
 
 ##SAMs in non-driver genes
 summary_drugs[-which(summary_drugs$genes %in% driver_genes),]
