@@ -63,8 +63,6 @@ incl_cl_annot<-CMP_annot
 
 tissues<-sort(tissues)
 
-load(paste(pathdata, "/Robj/basal_exp.RData", sep=""))
-
 
 ###################################################
 ####################################################
