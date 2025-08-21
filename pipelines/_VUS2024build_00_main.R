@@ -6,7 +6,7 @@ library(tidyverse)
 pathdata <- "data"
 pathscript <- "../crisprVUS/pipelines"
 #resultPath<-'results/20250807_RR_th1.71/'
-resultPath<-'results/20250808_bugFixed_and_RR_th.1.71/'
+resultPath<-'results/20250808_bugFixed_and_RR_th.1.71_wr/'
 
 ###loading input data
 gene_annot <- read_csv(paste(pathdata, "/raw/gene_identifiers_20241212.csv", sep=""))
@@ -76,7 +76,7 @@ for (ctiss in tissues){
   oldEnv<-ls()
   oldEnv<-ls()
 
-  source(paste(pathscript,'/_VUS2024build_01_mut_CRISPR.R', sep=""))
+  source(paste(pathscript,'/_VUS2024build_01_mut_CRISPR_implicitRand.R', sep=""))
   newEnv<-ls()
   rm(list=setdiff(newEnv,oldEnv))
 
@@ -84,7 +84,7 @@ for (ctiss in tissues){
   newEnv<-ls()
   rm(list=setdiff(newEnv,oldEnv))
 
-  source(paste(pathscript, '/_VUS2024build_03_add_GDSC_validation.R', sep=""))
+  source(paste(pathscript, '/_VUS2024build_03_add_GDSC_validation_v2.R', sep=""))
   newEnv<-ls()
   rm(list=setdiff(newEnv,oldEnv))
 

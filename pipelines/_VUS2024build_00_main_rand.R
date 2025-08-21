@@ -5,9 +5,9 @@ library(parallel)
 
 ####setting paths
 pathdata <- "data"
-pathscript <- "pipelines"
-resultPath<-'results/20250221/'
-home<-"E:/VUS_2024build"
+pathscript <- "../crisprVUS/pipelines"
+resultPath<-'results/20250808_bugFixed_and_RR_th.1.71/'
+
 
 ###loading input data
 gene_annot <- read_csv(paste(pathdata, "/raw/gene_identifiers_20241212.csv", sep=""))
@@ -71,7 +71,7 @@ load(paste(pathdata, "/Robj/basal_exp.RData", sep=""))
 ## define the genes to run the randomizations on
 ############################
 
-setwd(paste(home, "/", resultPath, sep=""))
+#setwd(paste(home, "/", resultPath, sep=""))
 
 ##load DAM data
 tissues<-gsub("_results.RData", "", list.files(pattern="results.RData"))

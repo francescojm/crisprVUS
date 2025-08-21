@@ -2,13 +2,13 @@
 drugTargetInfo <- read.table(paste(pathdata,'/raw/drug-target_data_hgvs_clean_Goncalves_et_all.txt', sep=""),sep='\t',stringsAsFactors = FALSE,header=TRUE)
 ### drug-target_data_hgvs_clean_Goncalves_et_all.txt built from https://www.embopress.org/doi/suppl/10.15252/msb.20199405/suppl_file/msb199405-sup-0003-datasetev2.xlsx on 20241003
 
-
 gdsc1<-read.csv(paste(pathdata,'/raw/GDSC1_fitted_dose_response_27Oct23.csv', sep=""),header = TRUE,stringsAsFactors = FALSE)
 gdsc2<-read.csv(paste(pathdata,'/raw/GDSC2_fitted_dose_response_27Oct23.csv', sep=""),header = TRUE,stringsAsFactors = FALSE)
 ### GDSC1_fitted_dose_response_27Oct23.csv and GDSC2_fitted_dose_response_27Oct23.csv have been downloaded from: 
 ### https://cog.sanger.ac.uk/cancerrxgene/GDSC_release8.5/GDSC1_fitted_dose_response_27Oct23.xlsx and https://cog.sanger.ac.uk/cancerrxgene/GDSC_release8.5/GDSC2_fitted_dose_response_27Oct23.xlsx
 ### on the 20241003
 
+drugTargetInfo<-drugTargetInfo[which(is.element(as.character(drugTargetInfo$Drug.ID),union(as.character(gdsc1$DRUG_ID),as.character(gdsc2$DRUG_ID)))),]
 
 gdscAll<-rbind(gdsc1,gdsc2)
 
@@ -63,6 +63,8 @@ RES<-lapply(1:nrow(RESTOT),function(x){
           zscores[as.character(data1$DRUG_ID)[i],data1$SANGER_MODEL_ID[i]]<-data1$Z_SCORE[i]
           lnIC50[as.character(data1$DRUG_ID)[i],data1$SANGER_MODEL_ID[i]]<-data1$LN_IC50[i]
           
+          allPattern<-gdscAll$LN_IC50[gdscAll$DATASET==data1$DATASET[i] & gdscAll$DRUG_ID==data1$DRUG_ID[i] & is.element(gdscAll$SANGER_MODEL_ID,clTiss)]
+          
           additionalInfos[as.character(data1$DRUG_ID)[i],'screen']<-data1$DATASET[i]
           additionalInfos[as.character(data1$DRUG_ID)[i],'drug_id']<-data1$DRUG_ID[i]
           additionalInfos[as.character(data1$DRUG_ID)[i],'drug_name']<-data1$DRUG_NAME[i]
@@ -70,7 +72,6 @@ RES<-lapply(1:nrow(RESTOT),function(x){
           additionalInfos[as.character(data1$DRUG_ID)[i],'min_conc']<-data1$MIN_CONC[i]
           additionalInfos[as.character(data1$DRUG_ID)[i],'max_conc']<-data1$MAX_CONC[i]
           
-          allPattern<-gdscAll$LN_IC50[gdscAll$DATASET==data1$DATASET[i] & gdscAll$DRUG_ID==data1$DRUG_ID[i] & is.element(gdscAll$SANGER_MODEL_ID,clTiss)]
           names(allPattern)<-gdscAll$SANGER_MODEL_ID[gdscAll$DATASET==data1$DATASET[i] & gdscAll$DRUG_ID==data1$DRUG_ID[i] & is.element(gdscAll$SANGER_MODEL_ID,clTiss)]
           
           hits<-match(cellLines,names(allPattern)[order(allPattern)])
