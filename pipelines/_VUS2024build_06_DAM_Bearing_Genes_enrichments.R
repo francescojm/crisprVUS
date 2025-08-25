@@ -8,7 +8,7 @@ library(VennDiagram)
 ####setting paths
 pathdata <- "data"
 pathscript <- "pipelines"
-resultPath<-'results/20250221/'
+resultPath<-'results/20250808_bugFixed_and_RR_th.1.71_wr/'
 
 my.hypTest<-function(x,k,n,N){
   
@@ -57,11 +57,12 @@ background_entrez<-as.character(background_entrez$entrezgene_id)
 # Performing Enrichment analysis of reactome pathways in the DAM bearing genes (all of them)
 all_DAM_enrichments <- enrichPathway(gene=allDAM_bearing_entrez, pvalueCutoff = 0.05, readable=TRUE, universe=background_entrez)
 
-pdf(paste(resultPath, "exploration/figures/REACTOME_allDAMbearing_AS2.pdf",sep=""), 7,6)
+pdf(paste(resultPath, "_Figures_source/REACTOME_enrich_allDAMbearing.pdf",sep=""), 7,6)
 dotplot(all_DAM_enrichments,showCategory=10)
 dev.off()
 
-write.table(all_DAM_enrichments,quote=FALSE,sep='\t',dec=",", row.names = F, file=paste(resultPath,'/_pathEnrichments_all_DAMbearing_genes_AS2_FI.txt',sep=''))
+write.table(all_DAM_enrichments,quote=FALSE,sep='\t',dec=",", row.names = F,
+            file=paste(resultPath,'/_pws_enriched_in_all_DAMbearing_genes.txt',sep=''))
 
 # selecting only new DAM bearing genes
 new_gene_symbols <- setdiff(unique(allDAM_bearing_genes$allDAM_bearing_genes),inTOgen_drivers)
@@ -76,7 +77,8 @@ new_DAM_bearing_entrez<-as.character(new_DAM_bearing_entrez$entrezgene_id)
 # Performing Enrichment analysis of reactome pathways in the DAM bearing genes (new only of them)
 new_DAM_enrichments <- enrichPathway(gene=new_DAM_bearing_entrez, pvalueCutoff = 0.05, readable=TRUE, universe=background_entrez)
 
-write.table(new_DAM_enrichments,quote=FALSE,sep='\t',dec=",",row.names = F, file=paste(resultPath,'/_pathEnrichments_new_DAMbearing_genes_AS2_FI.txt',sep=''))
+write.table(new_DAM_enrichments,quote=FALSE,sep='\t',dec=",",row.names = F,
+            file=paste(resultPath,'/_pws_enriched_in_new_DAMbearing_genes.txt',sep=''))
 
 IntoGEN_Drivers_entrez<-result <- getBM(
   attributes = c("hgnc_symbol", "entrezgene_id"),
@@ -89,16 +91,17 @@ IntoGEN_Drivers_entrez<-as.character(IntoGEN_Drivers_entrez$entrezgene_id)
 # selecting only known DAM bearing genes
 known_DAM_bearing_entrez<-intersect(allDAM_bearing_entrez,IntoGEN_Drivers_entrez)
 
-# Performing Enrichment analysis of reactome pathways in the DAM bearing genes (new only of them)
+# Performing Enrichment analysis of reactome pathways in the DAM bearing genes (known only)
 known_DAM_enrichments <- enrichPathway(gene=known_DAM_bearing_entrez, pvalueCutoff = 0.05, readable=TRUE, universe=background_entrez)
 
-write.table(known_DAM_enrichments,quote=FALSE,sep='\t',dec=",",row.names = F, file=paste(resultPath,'/_pathEnrichments_known_DAMbearing_genes_AS2_FI.txt',sep=''))
+write.table(known_DAM_enrichments,quote=FALSE,sep='\t',dec=",",row.names = F,
+            file=paste(resultPath,'/_pws_enriched_in_known_DAMbearing_genes.txt',sep=''))
 
 known_DAM_enrichments<-as.data.frame(known_DAM_enrichments)
 all_DAM_enrichments<-as.data.frame(all_DAM_enrichments)
 
 
-pdf(paste(resultPath, "exploration/figures/REACTOME_allDAMEnrich_vs_knownDAMEnrich_FI.pdf",sep=""), 7,7)
+pdf(paste(resultPath, "_Figures_source/REACTOME_allDAMEnrich_vs_knownDAMEnrich.pdf",sep=""), 7,7)
 venn.plot <- draw.pairwise.venn(
   area1 = length(known_DAM_enrichments$Description),
   area2 = length(all_DAM_enrichments$Description),
@@ -128,7 +131,8 @@ res<-cbind(all_DAM_enrichments[id1,1:3],
  
 colnames(res)<-c('pathway id','id','description','known DAM-bearing genes','unreported DAM-bearing genes')
  
-write.table(res,sep='\t',quote=FALSE,file=paste(resultPath,'/_conservedPath_inspect_FI.txt',sep=''))
+write.table(res,sep='\t',quote=FALSE,
+            file=paste(resultPath,'/_pws_enriched_conserved_in_all_vs_known_DAMbearing_genes.txt',sep=''))
 
 newOnly<-setdiff(rownames(all_DAM_enrichments),rownames(known_DAM_enrichments))
 
@@ -145,7 +149,7 @@ res<-cbind(all_DAM_enrichments[id1,1:3],
 
 colnames(res)<-c('pathway id','id','description','known DAM-bearing genes','unreported DAM-bearing genes')
 
-write.table(res,sep='\t',quote=FALSE,file=paste(resultPath,'/_newOnlyPath_inspect_FI.txt',sep=''))
+write.table(res,sep='\t',quote=FALSE,file=paste(resultPath,'/_pws_enriched_setDiff_of_enrichments_all_vs_known_DAMbearing_genes.txt',sep=''))
 
 
 ################################################################
@@ -176,7 +180,7 @@ new_background_entrez<- getBM(
 new_background_entrez<-new_background_entrez$entrezgene_id
 pathway_to_genes <- as.list(reactomePATHID2EXTID)
 
-# uncomment to recompute cleng_
+# #uncomment to recompute cleng_
 # 
 # cleng_<-NULL
 # eleng_<-NULL
@@ -198,19 +202,19 @@ pathway_to_genes <- as.list(reactomePATHID2EXTID)
 #    randomGenesOutPathways<-as.character(sample(intersect(new_background_entrez, allGenes_out_reactome),n_new_DAM_entrez_out_Reactome))
 # 
 #    randomGenes<-c(randomGenesInPathways,randomGenesOutPathways)
-#    
+# 
 #    random_DAM_enrichments <- enrichPathway(gene=c(known_DAM_bearing_entrez,
 #                                                   randomGenes),
 #                                                   pvalueCutoff = 0.05, readable=TRUE, universe=background_entrez)
-#    
+# 
 #    commonRandpaths<-intersect(known_DAM_enrichments$Description,random_DAM_enrichments$Description)
 #    onlyNewRandPaths<-setdiff(random_DAM_enrichments$Description,known_DAM_enrichments$Description)
-#    
+# 
 #    cleng_[i]<-length(commonRandpaths)
 #    eleng_[i]<-length(onlyNewRandPaths)
-#    
+# 
 #    presencePath<-cbind(presencePath,unlist(lapply(OnlyInAllPaths,function(x){is.element(x,onlyNewRandPaths)}))+0)
-#    
+# 
 #    par(mfrow=c(2,1))
 #    hist(cleng_)
 #    hist(eleng_)
@@ -220,20 +224,21 @@ pathway_to_genes <- as.list(reactomePATHID2EXTID)
 # }
 # 
 #  rownames(presencePath)<-OnlyInAllPaths
-#  
-#  save(cleng_,file=paste(resultPath,'/_all_vs_known_DAM_bearingG_enrichedPathways_overlap_random_AS2_FI.RData',sep=''))
-#  save(eleng_,file=paste(resultPath,'/_all_vs_known_DAM_bearingG_enrichedPathways_NewOnly_random_FI.RData',sep=''))
-#  save(presencePath,file=paste(resultPath,'/_all_vs_known_DAM_bearingG_enrichedPathways_NewOnly_random_pPath_FI.RData',sep=''))
+# 
+#  save(cleng_,file=paste(resultPath,'/_pws_enrich_all_vs_known_DAM_bearingG_enrichedPathways_overlap_random.RData',sep=''))
+#  save(eleng_,file=paste(resultPath,'/_pws_enrich__all_vs_known_DAM_bearingG_enrichedPathways_NewOnly_random.RData',sep=''))
+#  save(presencePath,file=paste(resultPath,'/_pws_enrich__all_vs_known_DAM_bearingG_enrichedPathways_NewOnly_random_pPath.RData',sep=''))
 # # uncomment to recompute cleng_
  
  ############
  
-load(file=paste(resultPath,'/_all_vs_known_DAM_bearingG_enrichedPathways_overlap_random_AS2_FI.RData',sep=''))
-load(file=paste(resultPath,'/_all_vs_known_DAM_bearingG_enrichedPathways_NewOnly_random_FI.RData',sep=''))
-load(file=paste(resultPath,'/_all_vs_known_DAM_bearingG_enrichedPathways_NewOnly_random_pPath_FI.RData',sep=''))
+ 
+load(file=paste(resultPath,'/_pws_enrich_all_vs_known_DAM_bearingG_enrichedPathways_overlap_random.RData',sep=''))
+load(file=paste(resultPath,'/_pws_enrich__all_vs_known_DAM_bearingG_enrichedPathways_NewOnly_random.RData',sep=''))
+load(file=paste(resultPath,'/_pws_enrich__all_vs_known_DAM_bearingG_enrichedPathways_NewOnly_random_pPath.RData',sep=''))
 
 
-pdf(paste(resultPath, "exploration/figures/distr_of_conserved_pathEnrichments_FI.pdf",sep=""), 5,4)
+pdf(paste(resultPath, "_figures_source/distr_of_conserved_pathEnrichments.pdf",sep=""), 5,4)
 hist(cleng_,
      main=paste('Conserved pathway enrichments\n when adding randomly selected genes\nto the known DAM-bearing'),
      xlab='n. conserved enrichments')
@@ -247,7 +252,7 @@ print(paste('probability of having',length(Conserved_paths),
       length(new_DAM_bearing_entrez),'genes not known to be driver and selected by random chance (preserving the ratio of genes in reactome pathways or out) =',pval))
 
 
-pdf(paste(resultPath, "exploration/figures/distr_of_newOnly_pathEnrichments_FI.pdf",sep=""), 5,4)
+pdf(paste(resultPath, "_figures_source/distr_of_newOnly_pathEnrichments.pdf",sep=""), 5,4)
 hist(eleng_,
      main=paste('New pathway enrichments\n when adding randomly selected genes\nto the known DAM-bearing'),
      xlab='n. of new enrichments')
@@ -257,7 +262,7 @@ dev.off()
 pval<-length(which(eleng_>=length(newOnly)))/length(eleng_)
 
 print(paste('probability of having',length(newOnly),
-            'newly enriched pathways conserved when adding to the DAM bearing genes known to be cancer deriver genes an additional',
+            'newly enriched pathways when adding to the DAM bearing genes known to be cancer deriver genes an additional',
             length(new_DAM_bearing_entrez),'genes not known to be driver and selected by random chance (preserving the ratio of genes in reactome pathways or out) =',pval))
 
 pp1<-rep(1,length(Conserved_paths))
@@ -311,13 +316,16 @@ print(paste('p = ',observed_co_occurrence_in_a_pathway_with_a_cancer_driver,sep=
 
 expectation<-mean(res)
 
-pdf(paste(resultPath, "exploration/figures/CoOcc_with_know_drivers_in_REACTOME_pathways_FI.pdf",sep=""), 5,3)
+print(paste('expected value = ',expectation,sep=''))
+
+
+pdf(paste(resultPath, "_figures_source/CoOcc_with_know_drivers_in_REACTOME_pathways.pdf",sep=""), 5,3)
 hist(res,main=paste('co-occurrences in at least one pathway\nwith a cancer driver gene'),
      xlab=paste('n. out of ',length(new_gene_symbols),'randomly selected genes (1,000 simulations)'),xlim=c(360,800))
 abline(v=x,col='red')
 dev.off()
 
-pdf(paste(resultPath, "exploration/figures/CoOcc_with_know_drivers_in_REACTOME_pathways_pvals_FI.pdf",sep=""), 5,3)
+pdf(paste(resultPath, "_figures_source/CoOcc_with_know_drivers_in_REACTOME_pathways_pvals.pdf",sep=""), 5,3)
 hist(unlist(lapply(res,function(x){-log10(my.hypTest(x,k,n,N))})),
      main='empirical p-values across 1,000 simulations',xlab='-log10(p)')
 dev.off()
@@ -331,25 +339,21 @@ rownames(Path_increasedCoverage)<-Conserved_paths
 Path_increasedCoverage<-Path_increasedCoverage[Path_increasedCoverage[,2]-Path_increasedCoverage[,1]>0,]
 
 oo<-order(Path_increasedCoverage[,2]-Path_increasedCoverage[,1])
-pdf(paste(resultPath, "exploration/figures/path_increasedcoverage_AS2_FI.pdf",sep=""), 10,15)
+pdf(paste(resultPath, "_figures_source/path_increasedcoverage.pdf",sep=""), 10,15)
 par(mar=c(4,26,0,0.5))
 barplot(t(cbind(Path_increasedCoverage[oo,2]-Path_increasedCoverage[oo,1],Path_increasedCoverage[oo,1])),
         beside = FALSE,horiz = TRUE,las=2,xlab='n. genes',xlim=c(0,80),cex.names=0.5,border=FALSE,
         col=c('orange','purple'))
 dev.off()
 
-
 oo<-order(Path_increasedCoverage[,2]-Path_increasedCoverage[,1],decreasing = TRUE)
-pdf(paste(resultPath, "exploration/figures/path_increasedcoverage_top10_FI.pdf",sep=""),10,4)
+pdf(paste(resultPath, "_figures_source/path_increasedcoverage_top10.pdf",sep=""),10,4)
 par(mar=c(4,10,0,0.5))
 barplot(t(cbind(Path_increasedCoverage[oo[seq(10,1,-1)],1],
                 Path_increasedCoverage[oo[seq(10,1,-1)],2]-Path_increasedCoverage[oo[seq(10,1,-1)],1])),
         beside = FALSE,horiz = TRUE,las=2,xlab='n. genes',xlim=c(0,75),cex.names=0.5,border=FALSE,
         col=c('purple','orange'))
 dev.off()
-
-
-
 
 
 res<-do.call(rbind,lapply(1:length(newOnly),function(x){
@@ -367,7 +371,7 @@ rownames(res)<-all_DAM_enrichments[match(newOnly,all_DAM_enrichments$ID),'Descri
 
 oo<-order(res[,2])
 
-pdf(paste(resultPath, "exploration/figures/path_increasedcoverage_NewOnly_FI.pdf",sep=""),10,4)
+pdf(paste(resultPath, "_figures_source/path_increasedcoverage_NewOnly.pdf",sep=""),10,4)
 par(mar=c(4,10,0,0.5))
 barplot(t(res[oo,]),
         beside = FALSE,horiz = TRUE,las=2,xlab='n. genes',xlim=c(0,60),cex.names=0.5,border=FALSE,
