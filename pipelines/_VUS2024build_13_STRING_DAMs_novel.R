@@ -5,7 +5,7 @@ library(STRINGdb)
 
 
 path_data<-"/data"
-path_results<-"/results/20250221"
+path_results<-"/results/20250808_bugFixed_and_RR_th.1.71_wr"
 #home<-"E:/VUS_2024build"
 home<-"/Users/francesco.iorio/Dropbox/CODING/vus/VUS 2025/"
 
@@ -39,33 +39,39 @@ library(tidyverse)
 load("_totalTestedVariants.RData")
 all_genes_nodriver<-setdiff(unique(totalTestedVariants$gene_symbol), driver_genes)
 
-set.seed(84905750)
-scorerand<-c()
 
-  for(j in 1:1000){
-    print(j)
-    rand_genes<-sample(all_genes_nodriver, length(hits_nodriver), replace = F)
-    dfrand<-data.frame(gene=unique(c(rand_genes, driver_genes)))
-    Randmapped <- string_db$map( dfrand, "gene", removeUnmappedRows = TRUE )
-    intrand<-string_db$get_interactions(Randmapped$STRING_id)
-    scorerand<-c(scorerand, sum(intrand[intrand[,1] %in% Randmapped[Randmapped[,1] %in% rand_genes,2] & intrand[,2] %in% Randmapped[Randmapped[,1] %in% driver_genes,2],3])+
-      sum(intrand[intrand[,2] %in% Randmapped[Randmapped[,1] %in% rand_genes,2] & intrand[,1] %in% Randmapped[Randmapped[,1] %in% driver_genes,2],3]))
-    hist(scorerand,xlim=c(min(c(scorerand,score)),max(c(scorerand,score))))
-    abline(v=score)
-    print(length(which(scorerand>=score))/j)
-  }
+# # uncomment to recompute the random STRING scores
+# set.seed(84905750)
+# scorerand<-c()
+# 
+#   for(j in 1:1000){
+#     print(j)
+#     rand_genes<-sample(all_genes_nodriver, length(hits_nodriver), replace = F)
+#     dfrand<-data.frame(gene=unique(c(rand_genes, driver_genes)))
+#     Randmapped <- string_db$map( dfrand, "gene", removeUnmappedRows = TRUE )
+#     intrand<-string_db$get_interactions(Randmapped$STRING_id)
+#     scorerand<-c(scorerand, sum(intrand[intrand[,1] %in% Randmapped[Randmapped[,1] %in% rand_genes,2] & intrand[,2] %in% Randmapped[Randmapped[,1] %in% driver_genes,2],3])+
+#       sum(intrand[intrand[,2] %in% Randmapped[Randmapped[,1] %in% rand_genes,2] & intrand[,1] %in% Randmapped[Randmapped[,1] %in% driver_genes,2],3]))
+#     hist(scorerand,xlim=c(min(c(scorerand,score)),max(c(scorerand,score))))
+#     abline(v=score)
+#     print(length(which(scorerand>=score))/j)
+#   }
+# save(scorerand, file="RND_STRING_SCORES.RData")
+# # [end of] uncomment to recompute the random STRING scores
 
-save(scorerand, file="scorerand_novel_FI.RData")
+load('RND_STRING_SCORES.RData')
 
 df<-data.frame(First_neighbours=scorerand)
 
-pdf("PPI_neigghbours_novel_FI.pdf",5,4)
+pdf("_figures_source/STRING_PPI_connections_emp.pdf",5,4)
 ggplot(df, aes(x=First_neighbours))+geom_density()+
   geom_vline(xintercept = score, linetype="dashed", 
         color = "red", size=1)+theme_classic()
-
 dev.off()
 
+empP<-length(which(scorerand>=score))/1000
+
+print()
 
 
 

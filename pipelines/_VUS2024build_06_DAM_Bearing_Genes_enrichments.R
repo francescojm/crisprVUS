@@ -265,6 +265,12 @@ print(paste('probability of having',length(newOnly),
             'newly enriched pathways when adding to the DAM bearing genes known to be cancer deriver genes an additional',
             length(new_DAM_bearing_entrez),'genes not known to be driver and selected by random chance (preserving the ratio of genes in reactome pathways or out) =',pval))
 
+
+pdf(paste(resultPath, "_figures_source/newOnly_pathEnrichments_empPval.pdf",sep=""),11,5)
+par(mar=c(6,28,0,3))
+barplot(rowSums(presencePath)/ncol(presencePath),horiz=TRUE,las=2,xlab='p')
+dev.off()
+
 pp1<-rep(1,length(Conserved_paths))
 pp2<-rep(1,length(Conserved_paths))
 
@@ -302,6 +308,7 @@ k<-length(new_DAM_bearing_entrez)
 x<-length(new_DAM_bearing_in_a_pathway_with_a_cancer_driver)
 
 res<-NULL
+set.seed(1234567)
 for (i in 1:1000){
   nn<-sample(all_genes,length(new_DAM_bearing_entrez))  
   res[i]<-length(intersect(nn,genes_in_pathways_with_a_cancer_driver))
@@ -329,6 +336,11 @@ pdf(paste(resultPath, "_figures_source/CoOcc_with_know_drivers_in_REACTOME_pathw
 hist(unlist(lapply(res,function(x){-log10(my.hypTest(x,k,n,N))})),
      main='empirical p-values across 1,000 simulations',xlab='-log10(p)')
 dev.off()
+
+pdf(paste(resultPath, "_figures_source/n.newDAMbgs_in_a_pathways_with_a_known_driver.pdf",sep=""), 6,6)
+pie(c(x,length(new_DAM_bearing_entrez)-x),col=c('#273c97','white'),main=paste(length(new_gene_symbols),'unreported DAMbgs'),labels = c(c(x,length(new_DAM_bearing_entrez)-x)))
+dev.off()
+
 
 Path_increasedCoverage<-
   cbind(known_DAM_enrichments[match(Conserved_paths,known_DAM_enrichments$Description),'Count'],

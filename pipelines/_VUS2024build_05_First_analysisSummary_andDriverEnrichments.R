@@ -73,17 +73,23 @@ decoupleMultipleHits<-function(hitTable){
   finalHit<-hitTable[setdiff(1:nrow(hitTable),iimultiple),]
   
   finalHit<-rbind(finalHit,
+                  
                   do.call('rbind',lapply(iimultiple,function(x){
+                    
+                    
                     indivar<-setdiff(strsplit(vars[x],' | ')[[1]],'|')
                     tmpHit<-NULL
                     for (i in 1:length(indivar)){
                       tmpHit<-rbind(tmpHit,hitTable[x,])
                     }
+                  
                     tmpHit$var<-indivar
+                    
                     return(tmpHit)
                   })))
   
-  }
+}
+
 my.hypTest<-function(x,k,n,N){
   
   PVALS<-phyper(x-1,n,N-n,k,lower.tail=FALSE)
@@ -170,17 +176,33 @@ names(ct_tested_variants)<-tissues
 #  allHits<-NULL
 #  for (i in 1:length(fc)){
 #     print(i)
-#     cty<-strsplit(fc[i],'_results_ext.RData')[[1]]
+#     cty<-strsplit(fc[i],'_results.RData')[[1]]
 #     load(paste(resultPath,'',fc[i],sep=''))
 # 
 #     hitsIdxs<-which(RESTOT$medFitEff< -0.5 & RESTOT$rank_ratio< 1.71 & RESTOT$empPval < 0.20 & RESTOT$hypTest_p<0.20)
 #     currHits<-RESTOT[hitsIdxs,]
-#     currDAMs<-decoupleMultipleHits(currHits)
+#     currDAMs<-decoupleMultipleHits(hitTable = currHits)
+#     
+#     idxs<-grep(', ',currDAMs$ps_cl)
+#     
+#     positiveCLs<-lapply(idxs,function(iii){
+#         currGene<-currDAMs$GENE[iii]
+#         currVar<-currDAMs$var[iii]
+#         currPsCls<-unlist(str_split(currDAMs$ps_cl[iii],', '))
+#         
+#         subi<-which(totalTestedVariants$gene_symbol==currGene & totalTestedVariants$protein_mutation==currVar)
+#         PSCl<-unlist(str_split(totalTestedVariants$positiveCls[subi],', '))
+#         PSCl<-paste(intersect(PSCl,currPsCls),collapse=', ')
+#         return(PSCl)
+#     })
+#     
+#     currDAMs$ps_cl[idxs]<-unlist(positiveCLs)
+#     
 #     rownames(currHits)<-NULL
 #     rownames(currDAMs)<-NULL
 # 
 #     currHits<-currHits[order(currHits$GENE),]
-#     currDAMs<-currDAMs[,1:3]
+#     currDAMs<-currDAMs[,c(1:3,11)]
 #     currDAMs<-currDAMs[order(currDAMs$GENE),]
 #     allDAMs<-rbind(allDAMs,currDAMs)
 #     allHits<-rbind(allHits,currHits)
@@ -319,8 +341,9 @@ n<-length(ambig)
 x<-length(intersect(ambig,allDAM_bearing_genes$allDAM_bearing_genes))
 print(paste('of the',k,'DAM bearing genes,',x,'have been previously reported as TSGs or oncoGenes (inTOgen) (',100*x/k,'%)'))
 print('hypergeometric test p-value:')
-my.hypTest(x,k,n,N)
 
+nAmb<-x
+pAmb<-my.hypTest(x,k,n,N)
 
 
 pdf(paste(resultPath, "_figures_source/pie_drivers.pdf",sep=""), 7,8)
@@ -404,11 +427,4 @@ print(paste('max = ', sort(colSums(COMPOSITION),decreasing = TRUE)[1],
 print(paste('DAM-bearing genes enriched for cancer type specific TSGs for ',length(which(COMPOSITIONp[1,]<0.05)),' cancer types (',round(100*length(which(COMPOSITIONp[1,]<0.05))/36,2),'%)',sep=''))
 print(paste('DAM-bearing genes enriched for cancer type specific abmgigous drivers for ',length(which(COMPOSITIONp[2,]<0.05)),' cancer types (',round(100*length(which(COMPOSITIONp[2,]<0.05))/36,2),'%)',sep=''))
 print(paste('DAM-bearing genes enriched for cancer type specific OG drivers for ',length(which(COMPOSITIONp[3,]<0.05)),' cancer types (',round(100*length(which(COMPOSITIONp[3,]<0.05))/36,2),'%)',sep=''))
-
-## Fig. 2D
-#barplot(sort(-log10(summary(as.factor(summary(as.factor(paste(allDAMs$GENE,allDAMs$var)),length(allDAMs$GENE))))+1),decreasing=TRUE),border=FALSE)
-#sort(summary(as.factor(paste(allDAMs$GENE,allDAMs$var)),length(allDAMs$GENE)),decreasing=TRUE)[1:10]
-
-#DAMbgsAcrossNanalysis<-sort(summary(as.factor(allHits$GENE),length(allHits$GENE)),decreasing=TRUE)
-#barplot(sort(-log10(summary(as.factor(summary(as.factor(allDAMs$GENE),length(allDAMs$GENE))))+1),decreasing=TRUE),border=FALSE)
 

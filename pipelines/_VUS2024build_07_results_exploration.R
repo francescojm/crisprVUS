@@ -5,11 +5,11 @@ library(ReactomePA)
 library(clusterProfiler)
 library(tidyverse)
 
-#set path
-path_data<-"data"
-pathdata<-"data"
-path_results<-"/results/20250221"
-home<-"E:/VUS_2024build"
+####setting paths
+home<-'/Users/francesco.iorio/Dropbox/CODING/vus/VUS 2025/'
+pathdata <- "data"
+pathscript <- "pipelines"
+resultPath<-'results/20250808_bugFixed_and_RR_th.1.71_wr/'
 
 ###loading input data
 gene_annot <- read_csv(paste(pathdata, "/raw/gene_identifiers_20241212.csv", sep=""))
@@ -30,6 +30,7 @@ scaled_depFC<-t(scaled_depFC)
 
 #remove genes with missing values
 scaled_depFC<-scaled_depFC[-which(rowSums(is.na(scaled_depFC))>0),]
+
 #create a binarized matrix (essential vs non-essential)
 bdep<-scaled_depFC
 bdep[scaled_depFC<=(-0.5)]<-1
@@ -49,60 +50,64 @@ colnames(cl_variants)[ncol(cl_variants)]<-'gene_symbol_2023'
 #### load results with empirical pvalues
 ####################################################################
 
-setwd(paste(home, "/", path_results, sep=""))
+setwd(paste(home, "/", resultPath, sep=""))
+
+
 
 ##load DAM data
-tissues<-gsub("_results_ext.RData", "", list.files(pattern="results_ext.RData"))
+tissues<-gsub("_results.RData", "", list.files(pattern="results.RData"))
 
 results<-list()
 ind_iter<-0
 for(ctiss in tissues){
   ind_iter<-ind_iter+1
-  load(paste(ctiss, "_results_ext.RData", sep=""))
+  load(paste(ctiss, "_results.RData", sep=""))
   results[[ind_iter]] <- RESTOT
 }
 names(results)<-tissues
+
+setwd(home)
 
 ##driver genes
 inTOgen_drivers<-read.table(paste(home, '/data/raw/2024-06-18_IntOGen-Drivers/Compendium_Cancer_Genes.tsv', sep=""),sep='\t',stringsAsFactors = FALSE,header=TRUE)
 ### inTOgene drivers downloaded from https://www.intogen.org/download?file=IntOGen-Drivers-20240920.zip on 20241002
 driver_genes<-unique(inTOgen_drivers$SYMBOL)
 
-setwd(home)
+#setwd(home)
 
 #################
 ####random p, rank ratio and median fitness effect distribution
 ###############
-p<-c()
-for(ctiss in tissues){
-p<-c(p,results[[ctiss]]$pval_rand[results[[ctiss]]$rank_ratio<1.6 & results[[ctiss]]$medFitEff< -.5])
-}
+# p<-c()
+# for(ctiss in tissues){
+# p<-c(p,results[[ctiss]]$pval_rand[results[[ctiss]]$rank_ratio<1.6 & results[[ctiss]]$medFitEff< -.5])
+# }
+# 
+# df<-data.frame(pvalue=p)
+# pdf(paste(home, path_results, "/exploration/figures/p_distribution.pdf", sep=""),6,4)
+# ggplot(df, aes(x=pvalue))+geom_histogram(bins = 100)+theme_classic()+ geom_vline(xintercept = 0.2, linetype="dashed", color = "red", size=0.5)
+# dev.off()
 
-df<-data.frame(pvalue=p)
-pdf(paste(home, path_results, "/exploration/figures/p_distribution.pdf", sep=""),6,4)
-ggplot(df, aes(x=pvalue))+geom_histogram(bins = 100)+theme_classic()+ geom_vline(xintercept = 0.2, linetype="dashed", color = "red", size=0.5)
-dev.off()
 
+# rr<-c()
+# for(ctiss in tissues){
+#   rr<-c(rr,results[[ctiss]]$rank_ratio)
+# }
 
-rr<-c()
-for(ctiss in tissues){
-  rr<-c(rr,results[[ctiss]]$rank_ratio)
-}
+# df<-data.frame(RankRatio=rr)
+# pdf(paste(home, path_results, "/exploration/figures/rr_distribution.pdf", sep=""),6,4)
+# ggplot(df, aes(x=RankRatio))+geom_histogram(bins = 100)+theme_classic()+ geom_vline(xintercept = 1.6, linetype="dashed", color = "red", size=0.5)
+# dev.off()
+# 
+# mfe<-c()
+# for(ctiss in tissues){
+#   mfe<-c(mfe,results[[ctiss]]$medFitEff)
+# }
 
-df<-data.frame(RankRatio=rr)
-pdf(paste(home, path_results, "/exploration/figures/rr_distribution.pdf", sep=""),6,4)
-ggplot(df, aes(x=RankRatio))+geom_histogram(bins = 100)+theme_classic()+ geom_vline(xintercept = 1.6, linetype="dashed", color = "red", size=0.5)
-dev.off()
-
-mfe<-c()
-for(ctiss in tissues){
-  mfe<-c(mfe,results[[ctiss]]$medFitEff)
-}
-
-df<-data.frame(medFitEff=mfe)
-pdf(paste(home, path_results, "/exploration/figures/medFitEff_distribution.pdf", sep=""),6,4)
-ggplot(df, aes(x=medFitEff))+geom_histogram(bins = 100)+theme_classic()+ geom_vline(xintercept = -0.5, linetype="dashed", color = "red", size=0.5)
-dev.off()
+# df<-data.frame(medFitEff=mfe)
+# pdf(paste(home, path_results, "/exploration/figures/medFitEff_distribution.pdf", sep=""),6,4)
+# ggplot(df, aes(x=medFitEff))+geom_histogram(bins = 100)+theme_classic()+ geom_vline(xintercept = -0.5, linetype="dashed", color = "red", size=0.5)
+# dev.off()
 
 
 ##############################
@@ -131,7 +136,8 @@ names(mut_burden_new)<-tissues
 
 num_hits<-c()
 for(ctiss in tissues){
-  num_hits<-c(num_hits, length(unique(results[[ctiss]]$GENE[results[[ctiss]]$rank_ratio<1.6 & results[[ctiss]]$medFitEff< -.5 & results[[ctiss]]$pval_rand < 0.2])))
+  num_hits<-c(num_hits, length(unique(results[[ctiss]]$GENE[results[[ctiss]]$rank_ratio<1.71 & results[[ctiss]]$medFitEff< -.5
+                                                            & results[[ctiss]]$hypTest_p < 0.2 & results[[ctiss]]$empPval < 0.2])))
 }
 names(num_hits)<-tissues
 
@@ -166,7 +172,8 @@ paste("the tissue with the lowest percentage DAM-bearing genes (considering muta
 
 hits<-c()
 for(ctiss in tissues){
-  hits<-c(hits, unique(results[[ctiss]]$GENE[results[[ctiss]]$rank_ratio<1.6 & results[[ctiss]]$medFitEff< -.5 & results[[ctiss]]$pval_rand < 0.2]))
+  hits<-c(hits, unique(results[[ctiss]]$GENE[results[[ctiss]]$rank_ratio<1.71 & results[[ctiss]]$medFitEff< -.5
+                                             & results[[ctiss]]$hypTest_p < 0.2 & results[[ctiss]]$empPval < 0.2]))
 }
 
 paste("Number of unique DAM-bearing genes:", length(unique(hits)))
@@ -181,38 +188,39 @@ paste("Number of DAM-bearing genes known as driver:", length(intersect(hits, dri
 
 paste("Number of DAM-bearing genes not known as driver:", length(setdiff(hits, driver_genes)))
 
-
 df<-data.frame(counts=table(table(hits)))
 df$counts.Freq<-log10(df$counts.Freq+1)
 df$counts.Var1<-as.numeric(as.character(df$counts.Var1))
 
-pdf(paste(home, path_results, "/exploration/figures/num_tissues_perhit_log.pdf", sep=""), 5, 5)
+#pdf(paste(home, path_results, "/exploration/figures/num_tissues_perhit_log.pdf", sep=""), 5, 5)
 ggplot(df, aes(x=counts.Var1, y=counts.Freq))+geom_bar(stat="identity")+theme_classic()+
   ylab("log10(counts+1)")+xlab("Number of cancer types")+scale_x_continuous(breaks=c(1:15))
-dev.off()
+#dev.off()
 
 
 df<-data.frame(counts=table(table(hits)[setdiff(hits,driver_genes)]))
 df$counts.Freq<-log10(df$counts.Freq+1)
 df$counts.Var1<-as.numeric(as.character(df$counts.Var1))
 
-pdf(paste(home, path_results, "/exploration/figures/num_tissues_perhit_nondrivers_log.pdf", sep=""), 2,5)
+#pdf(paste(home, path_results, "/exploration/figures/num_tissues_perhit_nondrivers_log.pdf", sep=""), 2,5)
 ggplot(df, aes(x=counts.Var1, y=counts.Freq))+geom_bar(stat="identity")+theme_classic()+
   ylab("log10(counts+1)")+xlab("Number of cancer types")+scale_x_continuous(breaks=c(1:10))
-dev.off()
+#dev.off()
 
 
-############
+############ !!! WRONG 
 ## Cell lines with the DAMs
 ############
 lines_screened<-CMP_annot$model_id[which(CMP_annot$cancer_type %in% tissues)]
 
 lines<-c()
 for(ctiss in tissues){
-ind<-which(results[[ctiss]]$rank_ratio<1.6 & results[[ctiss]]$medFitEff< -.5 & results[[ctiss]]$pval_rand < 0.2)
+ind<-which(results[[ctiss]]$rank_ratio<1.71 & results[[ctiss]]$medFitEff< -.5 & 
+             results[[ctiss]]$hypTest_p < 0.2 & results[[ctiss]]$empPval < 0.2)
 
-for(i in 1:length(ind)){
-print(i)
+uu<-length(ind)
+for(i in 1:uu){
+print(c(ctiss,i,uu))
   gene_ctiss<-results[[ctiss]]$GENE[ind[i]]
 vars_ctiss<-unlist(strsplit(results[[ctiss]]$var[ind[i]], " \\| "))
 lines_var<-cl_variants$model_id[cl_variants$gene_symbol_2023==gene_ctiss & cl_variants$protein_mutation %in% vars_ctiss & CMP_annot$cancer_type[match(cl_variants$model_id, CMP_annot$model_id)]==ctiss]
@@ -231,9 +239,14 @@ for(ctiss in tissues){
 
 num_lines<-c()
 unique_lines<-c()
+
 for(ctiss in levels(df$cancer_type)){
-  unique_lines<-c(unique_lines, max(df$line_by_type[df$cancer_type==ctiss]))
-  num_lines<-c(num_lines, length(which(df$cancer_type==ctiss)))
+
+  print(ctiss)
+  print(length(unique(df$line[df$cancer_type==ctiss])))
+  
+ # unique_lines<-c(unique_lines, max(df$line_by_type[df$cancer_type==ctiss]))
+#  num_lines<-c(num_lines, length(which(df$cancer_type==ctiss)))
 }
 
 df_text<-data.frame(cancer_type=levels(df$cancer_type), num_lines=num_lines, unique_lines=unique_lines)
@@ -243,21 +256,22 @@ qual_col_pals = brewer.pal.info[brewer.pal.info$category == 'qual',]
 col_vector = unlist(mapply(brewer.pal, qual_col_pals$maxcolors, rownames(qual_col_pals)))
 
 set.seed(245374)
-pdf(paste(home, path_results, "/exploration/figures/cell_lines_DAMs.pdf", sep=""),6,5)
+pdf(paste(home, resultPath, "_figures_source/DAMs_across_cell_lines.pdf", sep=""),6,5)
 ggplot(df, aes(x=cancer_type, fill=as.character(line_by_type)))+geom_bar()+theme_classic()+
-  scale_fill_manual(values=sample(col_vector, 78, replace=T))+geom_text(data=df_text, aes(x=cancer_type, y=num_lines+5, label=unique_lines), color="black", fontface="bold",alpha=0.6, size=2, inherit.aes = FALSE)+
+  scale_fill_manual(values=sample(col_vector, 81, replace=T))+geom_text(data=df_text, aes(x=cancer_type, y=num_lines+5, label=unique_lines), color="black", fontface="bold",alpha=0.6, size=2, inherit.aes = FALSE)+
   theme(legend.position="none", axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+ylab("cell lines")
 dev.off()
 
 print(paste("Number of cell lines with DAMs", sum(df_text$unique_lines) ))
-print(paste("Fraction of cell lines with DAMs", sum(df_text$unique_lines)/length(lines_screened) ))
+#print(paste("Fraction of cell lines with DAMs", sum(df_text$unique_lines)/length(lines_screened) ))
+print(paste("Fraction of cell lines with DAMs", sum(df_text$unique_lines)/nrow(incl_cl_annot)))
 
 
 ########################################
 #### Overlap between DAM-bearing genes and driver genes
 ###################################
 library(ggvenn)
-pdf(paste(home, path_results, "/exploration/figures/Venn_driver_hits.pdf", sep=""), 5, 5)
+pdf(paste(home,resultPath, "_figures_source/Venn_driver_hits.pdf", sep=""), 5, 5)
 ggvenn(data=list('Driver genes'=driver_genes, 'Hits'=hits),text_size=5, fill_color = c("#F0E442", "#0072B2"), show_percentage = F)
 dev.off()
 perc_int<-length(intersect(hits, driver_genes))/length(hits)
@@ -267,7 +281,7 @@ print(paste("Intersection", perc_int))
 ######################
 #### Other lists of drivers
 ######################
-benchmark<-read.xlsx(paste(path_data,"/raw/benchmark-datasets.xlsx", sep=""),1)
+benchmark<-read.xlsx(paste(pathdata,"/raw/benchmark-datasets.xlsx", sep=""),1)
 
 for(col in 1:8){
   dg1<-na.omit(benchmark[-1,col])
@@ -277,9 +291,9 @@ for(col in 1:8){
   c<-length(setdiff(dg1, hits))
   d<-length(unique(cl_variants$gene_symbol))
 
-  fisher.test(matrix(c(a,b,c,d), ncol=2), alternative="greater")
+  print(paste(benchmark[1,col],fisher.test(matrix(c(a,b,c,d), ncol=2), alternative="greater")$p))
 
-  pdf(paste(home, path_results, "/exploration/figures/Venn_driver_", col, ".pdf", sep=""), 5, 5)
+  pdf(paste(home, resultPath, "_figures_source/Venn_driver_", col, ".pdf", sep=""), 5, 5)
   print(ggvenn(data=list('Driver genes'=dg1, 'Hits'=hits),text_size=5, fill_color = c("#F0E442", "#0072B2"), show_percentage = F))
   dev.off()
 
@@ -300,7 +314,8 @@ for(dg in driver_genes){
   for(ctiss in tissues){
     ct_into<-cancer_match_long_into[which(cancer_match_long_CMP==ctiss)]
 
-    if(dg %in% results[[ctiss]]$GENE[results[[ctiss]]$rank_ratio<1.6 & results[[ctiss]]$medFitEff< -.5 & results[[ctiss]]$pval_rand < 0.2]){
+    if(dg %in% results[[ctiss]]$GENE[results[[ctiss]]$rank_ratio<1.71 & results[[ctiss]]$medFitEff< -.5 & 
+                                     results[[ctiss]]$hypTest_p < 0.2 & results[[ctiss]]$empPval < 0.2]){
       summary_drivers[dg,ctiss]<-"Novel"
 
     if(length(intersect(ct_into, inTOgen_drivers$CANCER_TYPE[inTOgen_drivers$SYMBOL==dg]))>0){
@@ -316,7 +331,7 @@ summary_drivers_bin<-summary_drivers
 summary_drivers_bin[summary_drivers_bin=="Known Found"]<-1
 summary_drivers_bin[summary_drivers_bin=="Novel"]<-0
 class(summary_drivers_bin)<-"numeric"
-save(summary_drivers_bin, file=paste(home, path_results, "summary_drivers_bin.RData", sep=""))
+save(summary_drivers_bin, file=paste(home, resultPath, "_summary_drivers_bin.RData", sep=""))
 
 
 #for each diver genes, plotted how many tumor types were known and how many novel ones we find
@@ -325,7 +340,7 @@ selhits2<-names(which(rowSums(summary_drivers==("Known Found")|summary_drivers==
 toplot<-summary_drivers_bin[selhits2,]
 toplot<-toplot[order(rowSums(!is.na(toplot)), decreasing = T),order(colSums(!is.na(toplot)), decreasing = T)]
 
-pdf(paste(home, path_results, "/exploration/figures/Drivers_pheat_novelvsknown.pdf", sep=""), 15, 15)
+pdf(paste(home, resultPath, "_figures_source/Drivers_pheat_novelvsknown.pdf", sep=""), 15, 15)
 pheatmap(toplot, cluster_rows = F, cluster_cols = F, cellwidth = 15, cellheight = 15)
 dev.off()
 graphics.off()
@@ -342,7 +357,7 @@ df$counts[df$type=="Not Found in a Known Cancer Type"]<- -df$counts[df$type=="No
 df$type<-factor(df$type, levels=c("Found in a Known Cancer Type", "Found in a Novel Cancer Type", "Not Found in a Known Cancer Type"))
 
 
-pdf(paste(home, path_results, "/exploration/figures/Drivers_barplot_thr2.pdf", sep=""),10, 5)
+pdf(paste(home, resultPath, "_figures_source/Drivers_barplot_thr2.pdf", sep=""),10, 5)
 ggplot(subset(df, (gene %in% selhits) & (type !="Not Found in a Known Cancer Type")),aes(x=gene, y=counts, fill=type))+geom_bar(stat="identity")+theme_classic()+ylab("Number of cancer types")+xlab("")+theme(axis.text.x = element_text(angle=90, size=10))+
   scale_fill_manual(values = c("#0072B2", "#56B4E9"), labels= c("Known", "Novel"))+ guides(fill=guide_legend(title="Cancer Type"))
 dev.off()
@@ -351,9 +366,9 @@ dev.off()
 ### Genes not known to be drivers: in how many cancer types
 ################################
 hits_nodriver<-setdiff(unique(hits), driver_genes)
-save(hits_nodriver, file=paste(home, path_results, "/exploration/hits_nodriver.RData", sep=""))
-hits<-unique(hits)
-save(hits, file=paste(home, path_results, "/exploration/hits.RData", sep=""))
+save(hits_nodriver, file=paste(home, resultPath, "_hits_nodriver.RData", sep=""))
+#hits<-unique(hits)
+#save(hits, file=paste(home, path_results, "/exploration/hits.RData", sep=""))
 
 summary_nodrivers<-matrix(0, nrow=length(hits_nodriver), ncol=length(tissues))
 rownames(summary_nodrivers)<-hits_nodriver
@@ -361,7 +376,8 @@ colnames(summary_nodrivers)<-tissues
 
 for(dg in hits_nodriver){
   for(ctiss in tissues){
-    if(dg %in% results[[ctiss]]$GENE[results[[ctiss]]$rank_ratio<1.6 & results[[ctiss]]$medFitEff< -.5 & results[[ctiss]]$pval_rand < 0.2]){
+    if(dg %in% results[[ctiss]]$GENE[results[[ctiss]]$rank_ratio<1.71 & results[[ctiss]]$medFitEff< -.5 & 
+                                     results[[ctiss]]$hypTest_p < 0.2 & results[[ctiss]]$empPval < 0.2]){
       summary_nodrivers[dg,ctiss]<-1
     }
 
@@ -372,7 +388,7 @@ for(dg in hits_nodriver){
 df<-data.frame(DAMbg=names(sort(rowSums(summary_nodrivers), decreasing=T)), ntissues=sort(rowSums(summary_nodrivers), decreasing=T))
 df$DAMbg<-factor(df$DAMbg, levels=c(names(sort(rowSums(summary_nodrivers), decreasing=T))))
 
-pdf(paste(home, path_results, "/exploration/figures/DAMbgs_unreported_ntiss.pdf", sep=""), 12, 4)
+pdf(paste(home, resultPath, "_figures_source/DAMbgs_unreported_ntiss.pdf", sep=""), 12, 4)
 ggplot(subset(df, ntissues>2), aes(x=DAMbg, y=ntissues))+geom_bar(stat="identity")+theme_classic()+theme(axis.text.x = element_text(angle=90, size=10))+
   scale_fill_manual(values = c("#0072B2",  "#E69F00"))+ guides(fill=guide_legend(title="Hit"))
 dev.off()
@@ -384,7 +400,7 @@ df$counts<-df$counts/rep(mut_burden_new, 3)
 df$tissue<-factor(df$tissue, levels=c(df$tissue[order(num_hits_norm, decreasing=T)]))
 df_sel<-df[df$tissue %in% df$tissue[order(num_hits_norm, decreasing=T)][1:10],]
 
-pdf(paste(home, path_results, "/exploration/figures/Hits_tissue_stack_simpl.pdf", sep=""), 5, 5)
+pdf(paste(home, resultPath, "_figures_source/Hits_tissue_stack_simpl.pdf", sep=""), 5, 5)
 ggplot(df_sel, aes(x=tissue, y=counts, fill=type))+geom_bar(stat="identity")+theme_classic()+ylab("% of hits")+xlab("")+theme(axis.text.x = element_text(angle=90, size=10))+
   scale_fill_manual(values = c("#0072B2",  "#E69F00"))+ guides(fill=guide_legend(title="Hit"))
 dev.off()

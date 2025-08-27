@@ -1,13 +1,26 @@
 library(stringr)
 library(tidyverse)
-pathdata <- "data"
+library(openxlsx)
 
-load('results/20250221/_totalTestedVariants.RData')
+####setting paths
+pathdata <- "data"
+pathscript <- "pipelines"
+resultPath<-'results/20250808_bugFixed_and_RR_th.1.71_wr/'
+
+clc<-read.xlsx(paste(pathdata,'/raw/CL_tissue_ctype_colors.xlsx',sep=''),sheet = 2,rowNames = TRUE)
+
+tract<-read.table(paste(pathdata,'/raw/Tractability_pacini_et_al_2024.txt',sep=''),sep="\t",
+                  header=TRUE,row.names = NULL)
+
+tractable_targets<-tract$id[which(tract$min_bucket==1)]
+
+load(paste(resultPath,'_totalTestedVariants.RData',sep=''))
+
 ###loading input data
-gene_annot <- read_csv("data/raw/gene_identifiers_20241212.csv")
+gene_annot <- read_csv(paste(pathdata,"/raw/gene_identifiers_20241212.csv",sep=''))
 ### gene_identifiers_20191101 downloaded from https://cog.sanger.ac.uk/cmp/download/gene_identifiers_20241212.csv on 20250221
 
-cl_variants <- read_csv('data/raw/mutations_all_20241212.csv')
+cl_variants <- read_csv(paste(pathdata,'/raw/mutations_all_20241212.csv',sep=''))
 ### mutations_all_20230202 downloaded from  https://cog.sanger.ac.uk/cmp/download/mutations_all_20241212.zip on 20250221
 
 cl_variants <- cbind(cl_variants,gene_annot$hgnc_symbol[match(cl_variants$gene_id,gene_annot$gene_id)])
@@ -34,13 +47,13 @@ bdep<-scaled_depFC
 bdep[scaled_depFC<=(-0.5)]<-1
 bdep[scaled_depFC>(-0.5)]<-0
 
-inTOgen_drivers<-read.table("data/raw/2024-06-18_IntOGen-Drivers/Compendium_Cancer_Genes.tsv", sep='\t',stringsAsFactors = FALSE,header=TRUE)
-load('results/20250221/_allHits.RData')
-load('results/20250221/_allDAM_bearing_genes.RData')
-load('results/20250221/_allDAMs.RData')
+inTOgen_drivers<-read.table(paste(pathdata,"/raw/2024-06-18_IntOGen-Drivers/Compendium_Cancer_Genes.tsv", sep=''),sep='\t',stringsAsFactors = FALSE,header=TRUE)
+load(paste(resultPath,'/_allHits.RData',sep=''))
+load(paste(resultPath,'/_allDAM_bearing_genes.RData',sep=''))
+load(paste(resultPath,'/_allDAMs.RData',sep=''))
 driver_genes<-inTOgen_drivers$SYMBOL
 
-mapping<-read.csv("data/raw/intOGen ctype mapping_AS.csv",header = TRUE,row.names = 1, sep=";")
+mapping<-read.csv(paste(pathdata,"/raw/intOGen ctype mapping_AS.csv",sep=''),header = TRUE,row.names = 1, sep=";")
 
 act_driver_genes<-inTOgen_drivers$SYMBOL[inTOgen_drivers$ROLE=="Act"]
 
@@ -53,121 +66,119 @@ co_occurrent<-c()
 non_co_occurrent<-c()
 ct_co_occurrent<-c()
 ct_non_co_occurrent<-c()
-DAM_bearing_lines<-unique(unlist(strsplit(allHits$ps_cl[-which(allHits$GENE %in% driver_genes)], ", ") ))
-for(l in DAM_bearing_lines){
+
+####selecting only cell lines with DAMs in an unreported DAMbgs
+DAM_bearing_lines<-unique(unlist(strsplit(allDAMs$ps_cl[-which(allDAMs$GENE %in% driver_genes)], ", ") ))
+known_DAM_bearing_lines<-unique(unlist(strsplit(allDAMs$ps_cl[which(allDAMs$GENE %in% driver_genes)], ", ")))
+
+
+RES<-do.call(rbind,lapply(DAM_bearing_lines,function(l){
+  print(l)
   ess_genes<-names(which(bdep[,l]==1))
+  
   ct<-CMP_annot$cancer_type[CMP_annot$model_id==l]
-  ct_into<-strsplit(mapping[ct, 1], " \\| ")
-  act_genes<-inTOgen_drivers$SYMBOL[inTOgen_drivers$ROLE=="Act" & inTOgen_drivers$CANCER_TYPE %in% ct_into]
   
-  other_Mutated_Genes<-cl_variants$gene_symbol_2023[which(cl_variants$model_id==l)]
-  other_Mutated_Act_Genes<-intersect(other_Mutated_Genes, act_genes)
-  other_Mutated_Act_Ess_Genes<-intersect(other_Mutated_Act_Genes, ess_genes)
+  ct_into<-unlist(strsplit(mapping[ct, 1], " \\| "))
   
-  if(length(other_Mutated_Act_Ess_Genes)>0){
-    co_occurrent<-c(co_occurrent, l)
-    ct_co_occurrent<-c(ct_co_occurrent, ct)
-  } else {
-    non_co_occurrent<-c(non_co_occurrent, l)
-    ct_non_co_occurrent<-c(ct_non_co_occurrent, ct)
-  }
-}
-
-print(paste(length(co_occurrent)/(length(co_occurrent)+length(non_co_occurrent))*100, "% of the cell lines with a DAM have a co-occurrent essential known driver mutated"))
-
-
-df_lines<-data.frame(line_index=c(co_occurrent, non_co_occurrent), tiss=c(ct_co_occurrent, ct_non_co_occurrent), 
-                     type=c(rep("co-occurrent", rep(length(co_occurrent))), rep("non-co-occurrent", rep(length(non_co_occurrent)))))
-df_lines$tiss<-factor(df_lines$tiss, levels=c(names(sort(table(df_lines$tiss), decreasing=T))))
-
-
-pdf("results/20250221/co_occurrence_lines.pdf", 10, 7)
-ggplot(df_lines, aes(x=tiss, fill=type))+geom_bar()+theme_classic()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-dev.off()
-
-df_tiss<-data.frame(table(ct_non_co_occurrent))
-rownames(df_tiss)<-df_tiss[,1]
-df_tiss$cooccurr<-0
-df_tiss[names(table(ct_co_occurrent)), "cooccurr"]<-c(table(ct_co_occurrent))
-colnames(df_tiss)<-c("tissue", "non_cooccurr", "cooccurr")
-df_tiss$tissue<-rownames(df_tiss)
-df_tiss$non_cooccurr[is.na(df_tiss$non_cooccurr)]<-0
-df_tiss$ratio<-df_tiss$non_cooccurr/(df_tiss$cooccurr+df_tiss$non_cooccurr)
-
-ggplot(df_tiss, aes(x=tissue, y=ratio))+geom_bar(stat="identity")+theme_classic()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-
-print(paste(sum(df_tiss$ratio==1), "number of tissues with DAMs exclusively in cell lines without a co-occurrent mutated essential driver"))
-
-pdf("results/20250221/co_occurrence_lines_hist.pdf", 7, 5)
-ggplot(df_tiss, aes(x=ratio))+geom_histogram()+theme_classic()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-dev.off()
-
-write.csv(df_tiss, file="results/20250221/co_occurrence_lines_pertiss.csv", quote = F, row.names = F)
-
-#################################################################
-########## DAM-level analysis
-##################################################################
-
-####DAMs co-occurrent or not co-occurrent with an essential driver mutation (separately for each cell line with the DAM, so each DAM can be computed multiple times)
-co_occurrent_d<-c()
-non_co_occurrent_d<-c()
-ct_co_occurrent_d<-c()
-ct_non_co_occurrent_d<-c()
-
-unreportedDAMs<-allDAMs[allDAMs$GENE %in% setdiff(allDAMs$GENE, driver_genes),]
-
-for(i in 1:nrow(unreportedDAMs)){
-  ct<-unreportedDAMs$ctype[i]
-  ind<-which(cl_variants$gene_symbol_2023==unreportedDAMs$GENE[i] & cl_variants$protein_mutation==unreportedDAMs$var[i] & cl_variants$model_id %in% CMP_annot$model_id[CMP_annot$cancer_type==ct])
-  cl<-cl_variants$model_id[ind]
-  cl<-intersect(cl, colnames(bdep))
+  act_genes<-inTOgen_drivers$SYMBOL[which(inTOgen_drivers$ROLE=="Act" & is.element(inTOgen_drivers$CANCER_TYPE,ct_into))]
   
-  for(l in cl){
-    ess_genes<-names(which(bdep[,l]==1))
-    ct_into<-strsplit(mapping[ct, 1], " \\| ")
-    act_genes<-inTOgen_drivers$SYMBOL[inTOgen_drivers$ROLE=="Act" & inTOgen_drivers$CANCER_TYPE %in% ct_into]
-    
-    other_Mutated_Genes<-cl_variants$gene_symbol_2023[which(cl_variants$model_id==l)]
-    other_Mutated_Act_Genes<-intersect(other_Mutated_Genes, act_genes)
-    other_Mutated_Act_Ess_Genes<-intersect(other_Mutated_Act_Genes, ess_genes)
-    
-    if(length(other_Mutated_Act_Ess_Genes)>0){
-      co_occurrent_d<-c(co_occurrent_d, i)
-      ct_co_occurrent_d<-c(ct_co_occurrent_d, ct)
-    } else {
-      non_co_occurrent_d<-c(non_co_occurrent_d, i)
-      ct_non_co_occurrent_d<-c(ct_non_co_occurrent_d, ct)
-    }
-    
-  }
-  }
+  all_Mutated_Genes<-cl_variants$gene_symbol_2023[which(cl_variants$model_id==l)]
+  
+  all_Mutated_act_Genes<-intersect(all_Mutated_Genes, act_genes)
+  
+  Act_Ess_Drivers<-intersect(all_Mutated_act_Genes, ess_genes)
+  
+  idcell<-grep(l,allDAMs$ps_cl)
+  gg<-allDAMs$GENE[idcell]
+  vars<-allDAMs$var[idcell]
+  
+  observed_DAMs<-paste(gg,vars,sep='')
+  
+  DAMs_in_unreported_DAMbgs<-paste(observed_DAMs[which(!is.element(allDAMs$GENE[idcell],driver_genes))],collapse=', ')
+  
+  druggable_DAMs_in_unreported_DAMbgs<-paste(intersect(setdiff(gg,driver_genes),tractable_targets),collapse=', ')
+  
+  DAMs_in_known_DAMbgs<-paste(observed_DAMs[which(is.element(allDAMs$GENE[idcell],act_genes))],collapse=', ')
+  
+  druggable_known_DAMs<-paste(intersect(intersect(gg,act_genes),tractable_targets),collapse=', ')
+  
+  druggable_Act_Ess_Drivers<-paste(intersect(Act_Ess_Drivers,tractable_targets),collapse=', ')
+  
+  Act_Ess_Drivers<-paste(Act_Ess_Drivers,collapse=', ')
+  
+  c(ct,l,DAMs_in_unreported_DAMbgs,druggable_DAMs_in_unreported_DAMbgs,DAMs_in_known_DAMbgs,druggable_known_DAMs,Act_Ess_Drivers,druggable_Act_Ess_Drivers)
+}))
 
-length(co_occurrent_d)/(length(co_occurrent_d)+length(non_co_occurrent_d))
+colnames(RES)<-c('cancer_type','cell line','DAMs in unreported DAMbgs','of which druggable','DAMs in known DAMbgs','of which druggable','GoF mutated and essential drivers','of which druggable')
 
-df_lines<-data.frame(line_index=c(co_occurrent_d, non_co_occurrent_d), tiss=c(ct_co_occurrent_d, ct_non_co_occurrent_d), 
-                     type=c(rep("co-occurrent", rep(length(co_occurrent_d))), rep("non-co-occurrent", rep(length(non_co_occurrent_d)))))
-df_lines$tiss<-factor(df_lines$tiss, levels=c(names(sort(table(df_lines$tiss), decreasing=T))))
+DAMcanONC_co_occ<-RES
+save(DAMcanONC_co_occ,file=paste(resultPath,'_DAM_canonical_oncogenic_addition_co_occurrence.RData',sep=''))
 
-pdf("results/20250221/co_occurrence_inlines_DAMs.pdf", 10, 7)
-ggplot(df_lines, aes(x=tiss, fill=type))+geom_bar()+theme_classic()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+write.table(RES, file=paste(resultPath,'_DAM_canonical_oncogenic_addition_co_occurrence.tsv',sep=''),
+          quote = F, row.names = F,sep='\t')
+
+nn<-100*length(which(RES[,5]==''))/nrow(RES)
+
+print(paste(nn,'% of CCLs from a given cancer-type, with an DAM in an unreported DAMbgs, lacks DAMs in cancer-type specific known GoF driver genes',sep=''))
+
+nn<-100*length(which(RES[,7]==''))/nrow(RES)
+
+print(paste(nn,'% of CCLs from a given cancer-type, with an DAM in an unreported DAMbgs, lacks cancer-type specific known GoF driver genes that are mutated and essential',sep=''))
+
+occs<-unlist(lapply(RES[,5],function(x){x==''}))+0
+
+utiss<-unique(RES[,1])
+
+coc_results<-do.call(rbind,lapply(utiss, function(x){
+  temp<-occs[which(RES[,1]==x)]
+  n<-length(temp)
+  s<-sum(temp)
+  o<-n-s
+  c(o,s)
+}))
+
+rownames(coc_results)<-utiss
+colnames(coc_results)<-c('co-occurring oncAdd','other')
+print(paste('median across cancer types =', median(100*coc_results[,2]/rowSums(coc_results))))
+
+print(sort(100*coc_results[,2]/rowSums(coc_results)))
+
+coc_results<-coc_results[order(rowSums(coc_results),decreasing=TRUE),]
+
+pdf(paste(resultPath,'_figures_source/unreportedDAMs_oncogenicAddiction_coOcc.pdf',sep=''),11,7)
+par(mar=c(16,4,2,2))
+barplot(t(coc_results),border=FALSE,las=2,main=paste(sum(c(coc_results)),'cell lines with DAM in unreported DAMbgs'),ylab='n. cell lines',
+        col=c('darkgray','blue'))
+
+legend('topright',c('co-occurrent oncogenic addiction','others'),fill=c('darkgray','blue'),border=FALSE)
 dev.off()
 
-df_tiss_d<-data.frame(table(ct_non_co_occurrent_d))
-rownames(df_tiss_d)<-df_tiss_d[,1]
-df_tiss_d$cooccurr<-0
-df_tiss_d[names(table(ct_co_occurrent_d)), "cooccurr"]<-c(table(ct_co_occurrent_d))
-colnames(df_tiss_d)<-c("tissue", "non_cooccurr", "cooccurr")
-df_tiss_d$tissue<-rownames(df_tiss_d)
-df_tiss_d$non_cooccurr[is.na(df_tiss_d$non_cooccurr)]<-0
-df_tiss_d$ratio<-df_tiss_d$non_cooccurr/(df_tiss_d$cooccurr+df_tiss_d$non_cooccurr)
 
-ggplot(df_tiss_d, aes(x=tissue, y=ratio))+geom_bar(stat="identity")+theme_classic()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
-print(paste(sum(df_tiss_d$ratio==1), "number of tissues with DAMs exclusively in cell lines without a co-occurrent mutated essential driver"))
+occs<-unlist(lapply(RES[,7],function(x){x==''}))+0
 
-pdf("results/20250221/co_occurrence_inlines_DAMs_hist.pdf", 7, 5)
-ggplot(df_tiss_d, aes(x=ratio))+geom_histogram()+theme_classic()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+coc_results<-do.call(rbind,lapply(utiss, function(x){
+  temp<-occs[which(RES[,1]==x)]
+  n<-length(temp)
+  s<-sum(temp)
+  o<-n-s
+  c(o,s)
+}))
+
+rownames(coc_results)<-utiss
+colnames(coc_results)<-c('co-occurring oncAdd','other')
+print(paste('median across cancer types =', median(100*coc_results[,2]/rowSums(coc_results))))
+
+print(sort(100*coc_results[,2]/rowSums(coc_results)))
+
+coc_results<-coc_results[order(rowSums(coc_results),decreasing=TRUE),]
+
+pdf(paste(resultPath,'_figures_source/unreportedDAMs_oncogenicAddiction_coOcc_relaxed_criterion.pdf',sep=''),11,7)
+par(mar=c(16,4,2,2))
+barplot(t(coc_results),border=FALSE,las=2,main=paste(sum(c(coc_results)),'cell lines with DAM in unreported DAMbgs'),ylab='n. cell lines',
+        col=c('darkgray','blue'))
+
+legend('topright',c('co-occurrent oncogenic addiction','others'),fill=c('darkgray','blue'),border=FALSE)
 dev.off()
 
-write.csv(df_tiss_d, file="results/20250221/co_occurrence_inlines_DAMs_pertiss.csv", quote = F, row.names = F)
 
