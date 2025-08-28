@@ -36,6 +36,8 @@ if(!dir.exists(paste(resultPath,'/_DR_plots/',ctiss,sep=''))){
   dir.create(paste(resultPath,'/_DR_plots/',ctiss,sep=''))
 }
 
+RESTOT<-RESTOT[which(RESTOT$rank_ratio<1.71 & RESTOT$medFitEff < -.5 & RESTOT$hypTest_p < 0.2 & RESTOT$empPval<0.2),]
+
 # populating data matrices, drug annotations object and mutant cell lines
 RES<-lapply(1:nrow(RESTOT),function(x){
     
