@@ -104,51 +104,53 @@ tissues<-sort(tissues)
 ###################################################
 ####################################################
 
-allDRvaliations<-NULL
+# allDRvaliations<-NULL
+# 
+# for(ctiss in tissues){
+#   load(paste(resultPath,'/',ctiss,'_results.RData',sep=''))
+#   
+#   hits<-RESTOT[RESTOT$medFitEff< -0.5 & RESTOT$rank_ratio<1.71 & RESTOT$hypTest_p<0.20 & RESTOT$empPval<0.20,]
+#   
+#   allTar<-hits$GENE
+#   allVar<-hits$var
+#   
+#   allfnames<-list.files(pattern='RData',path=paste(resultPath,'/_DR_plots/',ctiss,"/", sep=''))
+#   fnames<-unlist(lapply(str_split(allfnames,' _ '),function(x){x[1]}))
+#   
+#   allVar<-allVar[which(allTar %in% fnames)]
+#   allTar<-intersect(allTar,fnames)
+#   
+#   if(length(allTar)>0){
+#     rRES<-do.call(rbind,lapply(1:length(allTar),function(i){
+#       
+#       x<-allTar[i]
+#       print(x)
+#       current_fn<-allfnames[match(x,unlist(lapply(str_split(allfnames,' _ '),function(x){x[[1]][1]})))]
+#       load(paste(resultPath,'/_DR_plots/',ctiss,'/',current_fn,sep=''))
+#       
+#       nnd<-nrow(SCREENdata$screenInfo)
+#       
+#       RES<-cbind(rep(ctiss,nnd),rep(paste(x,allVar[i]),nnd),SCREENdata$screenInfo)
+#       
+#       colnames(RES)[c(1,2)]<-c('ctype','Hit')
+#       rownames(RES)<-NULL  
+#       return(RES)
+#     }))
+#     
+#     save(rRES,file=paste(resultPath,'/_DR_plots/',ctiss,'_DR_validation.RData',sep=''))
+#     write.table(rRES,quote=FALSE,sep='\t',
+#                 row.names = FALSE,file=paste(resultPath,'/_DR_plots/',ctiss,'_DR_validation.tsv',sep=''))
+#     allDRvaliations<-rbind(allDRvaliations,rRES)
+#   }
+# }
+# 
+# allDRvaliations<-allDRvaliations[!is.na(allDRvaliations$validated),]
+# save(allDRvaliations,file=paste(resultPath,'/_all_DR_validations.RData',sep=''))
+# write.table(allDRvaliations,quote=FALSE,sep='\t',
+#             row.names = FALSE,file=paste(resultPath,'_all_DR_validations.tsv',sep=''))
 
-for(ctiss in tissues){
-  load(paste(resultPath,'/',ctiss,'_results.RData',sep=''))
-  
-  hits<-RESTOT[RESTOT$medFitEff< -0.5 & RESTOT$rank_ratio<1.71 & RESTOT$hypTest_p<0.20 & RESTOT$empPval<0.20,]
-  
-  allTar<-hits$GENE
-  allVar<-hits$var
-  
-  allfnames<-list.files(pattern='RData',path=paste(resultPath,'/_DR_plots/',ctiss,"/", sep=''))
-  fnames<-unlist(lapply(str_split(allfnames,' _ '),function(x){x[1]}))
-  
-  allVar<-allVar[which(allTar %in% fnames)]
-  allTar<-intersect(allTar,fnames)
-  
-  if(length(allTar)>0){
-    rRES<-do.call(rbind,lapply(1:length(allTar),function(i){
-      
-      x<-allTar[i]
-      print(x)
-      current_fn<-allfnames[match(x,unlist(lapply(str_split(allfnames,' _ '),function(x){x[[1]][1]})))]
-      load(paste(resultPath,'/_DR_plots/',ctiss,'/',current_fn,sep=''))
-      
-      nnd<-nrow(SCREENdata$screenInfo)
-      
-      RES<-cbind(rep(ctiss,nnd),rep(paste(x,allVar[i]),nnd),SCREENdata$screenInfo)
-      
-      colnames(RES)[c(1,2)]<-c('ctype','Hit')
-      rownames(RES)<-NULL  
-      return(RES)
-    }))
-    
-    save(rRES,file=paste(resultPath,'/_DR_plots/',ctiss,'_DR_validation.RData',sep=''))
-    write.table(rRES,quote=FALSE,sep='\t',
-                row.names = FALSE,file=paste(resultPath,'/_DR_plots/',ctiss,'_DR_validation.tsv',sep=''))
-    allDRvaliations<-rbind(allDRvaliations,rRES)
-  }
-}
 
-allDRvaliations<-allDRvaliations[!is.na(allDRvaliations$validated),]
-save(allDRvaliations,file=paste(resultPath,'/_all_DR_validations.RData',sep=''))
-write.table(allDRvaliations,quote=FALSE,sep='\t',
-            row.names = FALSE,file=paste(resultPath,'_all_DR_validations.tsv',sep=''))
-
+load(paste(resultPath,'/_all_DR_validations.RData',sep=''))
 load(paste(resultPath,'/_allHits.RData',sep=''))
 
 sigs<-paste(allDRvaliations$ctype,allDRvaliations$Hit)
@@ -174,8 +176,16 @@ allSAMs<-decoupleMultipleHits(hitTable = allDRvaliations)
 allSAMs<-allSAMs[order(allSAMs$cancer_type),]
 
 
-print(paste('encompassing ',length(unique(paste(allSAMs$cancer_type,allSAMs$genes,allSAMs$vars))),' individual cancer-type-specific drug validated DAMs (SAMs)',sep=''))
+print(paste('encompassing ',
+            length(unique(paste(allSAMs$cancer_type,allSAMs$genes,allSAMs$vars))),
+            ' individual cancer-type-specific drug validated DAMs (SAMs)',sep=''))
 
+ii<-which(is.element(allSAMs$genes,inTOgen_drivers))
+kallSAMs<-allSAMs[ii,]
+
+print(paste('encompassing ',
+            length(unique(paste(kallSAMs$cancer_type,kallSAMs$genes,kallSAMs$vars))),
+            ' individual cancer-type-specific drug validated DAMs (SAMs)',sep=''))
 
 inTOgen_drivers<-read.table(paste(pathdata,"/raw/2024-06-18_IntOGen-Drivers/Compendium_Cancer_Genes.tsv", sep=""), sep='\t',stringsAsFactors = FALSE,header=TRUE)
 ctypeMapping<-read.csv(paste(pathdata,'/raw/intOGen ctype mapping_AS.csv',sep=''),header = TRUE,row.names = 1, sep=";")
