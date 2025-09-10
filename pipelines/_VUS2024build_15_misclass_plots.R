@@ -1,6 +1,6 @@
 pathdata <- "data"
 pathscript <- "pipelines"
-resultPath<-'results/20250221/'
+resultPath<-'results/'
 
 load(paste(resultPath, "misclass_expr_rank.RData", sep=""))
 

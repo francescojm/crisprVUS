@@ -5,7 +5,7 @@ library(tidyverse)
 ####setting paths
 pathdata <- "data"
 pathscript <- "pipelines"
-resultPath<-'results/20250221/'
+resultPath<-'results/'
 
 ######################
 ### Cell lines with mutations in driver genes of other tissues
@@ -80,7 +80,7 @@ results<-list()
 ind_iter<-0
 for(ctiss in tissues_res){
   ind_iter<-ind_iter+1
-  load(paste(ctiss, "_results_ext.RData", sep=""))
+  load(paste(ctiss, "_results.RData", sep=""))
   results[[ind_iter]] <- RESTOT
 }
 names(results)<-tissues_res
@@ -103,7 +103,7 @@ comb_tests<-c()
     #all genes known to be driver in the specific cancer type
     known<-unique(inTOgen_drivers$SYMBOL[ inTOgen_drivers$CANCER_TYPE %in% setdiff(unlist(strsplit( cancer_match[ctiss,1], " | ")), "|")])
     #all genes known to be driver in any cancer type that are found as DAM-bearing
-    total_found<-intersect(results[[ctiss]]$GENE[results[[ctiss]]$rank_ratio<1.6 & results[[ctiss]]$medFitEff< -.5 & results[[ctiss]]$pval_rand < 0.2], driver_genes)
+    total_found<-intersect(results[[ctiss]]$GENE[results[[ctiss]]$rank_ratio<1.6 & results[[ctiss]]$medFitEff< -.5 & results[[ctiss]]$empP_FDR < 0.2], driver_genes)
     novel_all<-setdiff(total_found, known)
     
     for(novel in novel_all){
@@ -138,7 +138,7 @@ for(ctiss in tissues_res){
   #all genes known to be driver in the specific cancer type
   known<-unique(inTOgen_drivers$SYMBOL[ inTOgen_drivers$CANCER_TYPE %in% setdiff(unlist(strsplit( cancer_match[ctiss,1], " | ")), "|")])
   #all genes known to be driver in any cancer type that are found as DAM-bearing
-  total_found<-intersect(results[[ctiss]]$GENE[results[[ctiss]]$rank_ratio<1.6 & results[[ctiss]]$medFitEff< -.5 & results[[ctiss]]$pval_rand < 0.2], driver_genes)
+  total_found<-intersect(results[[ctiss]]$GENE[results[[ctiss]]$rank_ratio<1.6 & results[[ctiss]]$medFitEff< -.5 & results[[ctiss]]$empP_FDR < 0.2], driver_genes)
   novel_all<-setdiff(total_found, known)
   
   for(novel in novel_all){

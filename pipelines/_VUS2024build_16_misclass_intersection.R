@@ -2,7 +2,7 @@ library(pheatmap)
 ####setting paths
 pathdata <- "data"
 pathscript <- "pipelines"
-resultPath<-'results/20250221/'
+resultPath<-'results/'
 
 load(paste(resultPath, "misclass_expr_rank.RData", sep=""))
 
@@ -226,4 +226,17 @@ pdf(paste(resultPath, "SIDM00460_misclass.pdf", sep="/"),10,5)
 pheatmap(cellwidth = 15, cellheight = 15, corrs_SIDM00460[,order_SIDM00460],  cluster_rows = F, cluster_cols=F, scale="row")
 dev.off()
 
+cl<-"SIDM00763"
+tum<-"Thyroid Gland Carcinoma"
+corrs_SIDM00763<-rbind(misclass_expr[which(misclass_expr$line==cl & misclass_expr$other_type==tum) ,c(7:42)],
+                       misclass_drugs[which(misclass_drugs$line==cl & misclass_drugs$other_type==tum),c(7:42)],
+                       misclass_ess[which(misclass_ess$line==cl & misclass_ess$other_type==tum) ,c(7:42)],
+                       misclass_prot[which(misclass_prot$line==cl & misclass_prot$other_type==tum) ,c(7:42)])
+
+rownames(corrs_SIDM00763)<-c("Transcriptome", "Drug screens", "Essentiality", "Proteome")
+order_SIDM00763<-order(rowMeans(apply(-corrs_SIDM00763,1, rank)))
+
+pdf(paste(resultPath, "SIDM00763_misclass.pdf", sep="/"),10,5)
+pheatmap(cellwidth = 15, cellheight = 15, corrs_SIDM00460[,order_SIDM00763],  cluster_rows = F, cluster_cols=F, scale="row")
+dev.off()
 
