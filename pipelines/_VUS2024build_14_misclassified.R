@@ -1,5 +1,4 @@
 set.seed(123)
-library(CELLector)
 library(tidyverse)
 
 ####setting paths
@@ -138,7 +137,7 @@ for(ctiss in tissues_res){
   #all genes known to be driver in the specific cancer type
   known<-unique(inTOgen_drivers$SYMBOL[ inTOgen_drivers$CANCER_TYPE %in% setdiff(unlist(strsplit( cancer_match[ctiss,1], " | ")), "|")])
   #all genes known to be driver in any cancer type that are found as DAM-bearing
-  total_found<-intersect(results[[ctiss]]$GENE[results[[ctiss]]$rank_ratio<1.6 & results[[ctiss]]$medFitEff< -.5 & results[[ctiss]]$empP_FDR < 0.2], driver_genes)
+  total_found<-intersect(results[[ctiss]]$GENE[results[[ctiss]]$rank_ratio<1.71 & results[[ctiss]]$medFitEff< -.5 & results[[ctiss]]$empP_FDR < 0.2], driver_genes)
   novel_all<-setdiff(total_found, known)
   
   for(novel in novel_all){

@@ -199,6 +199,7 @@ for(line in all_lines){
 }
 
 which(table(c(unique(misclass_check_all[[1]]), unique(misclass_check_all[[2]]), unique(misclass_check_all[[3]]), unique(misclass_check_all[[4]])))>3)
+#SIDM00763 removed as HRAS is a driver in NSCLC
 
 corrs_SIDM00227<-rbind(misclass_expr[which(misclass_expr$line=="SIDM00227" & misclass_expr$other_type=="Pancreatic Carcinoma") ,c(7:42)],
                  misclass_drugs[which(misclass_drugs$line=="SIDM00227" & misclass_drugs$other_type=="Pancreatic Carcinoma"),c(7:42)],
@@ -225,18 +226,3 @@ order_SIDM00460<-order(rowMeans(apply(-corrs_SIDM00460,1, rank)))
 pdf(paste(resultPath, "SIDM00460_misclass.pdf", sep="/"),10,5)
 pheatmap(cellwidth = 15, cellheight = 15, corrs_SIDM00460[,order_SIDM00460],  cluster_rows = F, cluster_cols=F, scale="row")
 dev.off()
-
-cl<-"SIDM00763"
-tum<-"Thyroid Gland Carcinoma"
-corrs_SIDM00763<-rbind(misclass_expr[which(misclass_expr$line==cl & misclass_expr$other_type==tum) ,c(7:42)],
-                       misclass_drugs[which(misclass_drugs$line==cl & misclass_drugs$other_type==tum),c(7:42)],
-                       misclass_ess[which(misclass_ess$line==cl & misclass_ess$other_type==tum) ,c(7:42)],
-                       misclass_prot[which(misclass_prot$line==cl & misclass_prot$other_type==tum) ,c(7:42)])
-
-rownames(corrs_SIDM00763)<-c("Transcriptome", "Drug screens", "Essentiality", "Proteome")
-order_SIDM00763<-order(rowMeans(apply(-corrs_SIDM00763,1, rank)))
-
-pdf(paste(resultPath, "SIDM00763_misclass.pdf", sep="/"),10,5)
-pheatmap(cellwidth = 15, cellheight = 15, corrs_SIDM00460[,order_SIDM00763],  cluster_rows = F, cluster_cols=F, scale="row")
-dev.off()
-
